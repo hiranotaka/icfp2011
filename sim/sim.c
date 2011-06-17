@@ -547,11 +547,28 @@ static void init_game(struct game *game) {
 	game->nr_applications = 0;
 }
 
+static void clean_slot(struct slot *slot) {
+	unref_value(slot->field);
+}
+
+static void clean_user(struct user *user) {
+	int i;
+	for (i = 0; i < 256; i++)
+		clean_slot(&user->slots[i]);
+}
+
+static void clean_game(struct game *game) {
+	int i;
+	for (i = 0; i < 2; i++)
+		clean_user(&game->users[i]);
+}
+
 int main(int argc, char *argv[]) {
 	int i;
 	struct game game;
 	init_game(&game);
 	for (i = 0; i < 100000; i++)
 		play_interactive(&game);
+	clean_game(&game);
 	return 0;
 }
