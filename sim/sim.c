@@ -382,6 +382,28 @@ struct game *create_game(void) {
 	return game;
 }
 
+static void copy_slot(struct slot *old_slot, struct slot *new_slot) {
+	new_slot->field = ref_value(new_slot->field);
+	new_slot->vitality = old_slot->vitality;
+}
+
+static void copy_user(struct user *old_user, struct user *new_user) {
+	int i;
+	for (i = 0; i < 256; i++)
+		copy_slot(&old_user->slots[i], &new_user->slots[i]);
+}
+
+struct game *dup_game(struct game* old_game) {
+	struct game *new_game;
+	int i;
+	new_game = malloc(sizeof(struct game));
+	for (i = 0; i < 2; i++)
+		copy_user(&old_game->users[i], &new_game->users[i]);
+	new_game->turn = old_game->turn;
+	new_game->nr_applications = old_game->nr_applications;
+	return new_game;
+}
+
 static void clean_slot(struct slot *slot) {
 	unref_value(slot->field);
 }

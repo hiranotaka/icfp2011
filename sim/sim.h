@@ -25,6 +25,7 @@ void play_right(int slot_index, struct value *card_value, struct game *game);
 void next_play(struct game *game);
 
 struct game *create_game(void);
-void clean_game(struct game *game);
+struct game *dup_game(struct game *game);  // Not tested.
+void destroy_game(struct game *game);
 
 #endif
