@@ -31,45 +31,53 @@ static struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
-static void play_interactive_left(struct game *game) {
+static struct value *read_card_value() {
 	char line[16];
-	int slot_index;
-	struct value *card_value;
-
 	if (!fgets(line, sizeof(line), stdin))
-		return;
+		return NULL;
 
 	line[strlen(line) - 1] = 0;
-	card_value = find_card_value(line);
-	if (!card_value)
-		return;
+	return find_card_value(line);
+}
+
+static int read_slot_index() {
+	char line[16];
+	int slot_index;
 
 	if (!fgets(line, sizeof(line), stdin))
-		return;
+		return -1;
 
 	slot_index = atoi(line);
 	if (slot_index < 0 || slot_index >= 255)
+		return -1;
+
+	return slot_index;
+}
+
+static void play_interactive_left(struct game *game) {
+	int slot_index;
+	struct value *card_value;
+
+	card_value = read_card_value();
+	if (!card_value)
+		return;
+
+	slot_index = read_slot_index();
+	if (slot_index < 0)
 		return;
 
 	play_left(card_value, slot_index, game);
 }
 
 static void play_interactive_right(struct game *game) {
-	char line[16];
 	int slot_index;
 	struct value *card_value;
 
-	if (!fgets(line, sizeof(line), stdin))
+	slot_index = read_slot_index();
+	if (slot_index < 0)
 		return;
 
-	slot_index = atoi(line);
-	if (slot_index < 0 || slot_index >= 255)
-		return;
-
-	if (!fgets(line, sizeof(line), stdin))
-		return;
-	line[strlen(line) - 1] = 0;
-	card_value = find_card_value(line);
+	card_value = read_card_value();
 	if (!card_value)
 		return;
 
