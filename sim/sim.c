@@ -567,7 +567,7 @@ int main(int argc, char *argv[]) {
 	int i;
 	struct game game;
 	init_game(&game);
-	for (i = 0; i < 100000; i++)
+	for (i = 0; i < 200000; i++)
 		play_interactive(&game);
 	clean_game(&game);
 	return 0;
