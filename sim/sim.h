@@ -18,9 +18,10 @@ extern struct value attack_value;
 extern struct value help_value;
 extern struct value copy_value;
 extern struct value revive_value;
+struct value *find_card_value(const char *name);
 
-void play_left(struct value *card, int slot_index, struct game *game);
-void play_right(int slot_index, struct value *card, struct game *game);
+void play_left(struct value *card_value, int slot_index, struct game *game);
+void play_right(int slot_index, struct value *card_value, struct game *game);
 void next_play(struct game *game);
 
 void init_game(struct game *game);

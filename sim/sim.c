@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "types.h"
 #include "sim.h"
 
@@ -310,22 +311,46 @@ static int revive(struct function *f, struct value **retp,
 }
 DEFINE_FUNCTION(revive, 1);
 
-void play_left(struct value *card, int slot_index, struct game *game) {
+struct card {
+	const char *name;
+	struct value *value;
+};
+
+#define CARD(name) { #name, &name##_value }
+
+static const struct card cards[] = {
+	CARD(I), CARD(zero), CARD(succ), CARD(dbl), CARD(get), CARD(put),
+	CARD(S), CARD(K), CARD(inc), CARD(dec), CARD(attack), CARD(help),
+	CARD(copy), CARD(revive),
+};
+
+struct value *find_card_value(const char *name) {
+	int i;
+	for (i = 0; i < numberof(cards); i++) {
+		const struct card *card = &cards[i];
+		if (!strcmp(card->name, name)) {
+			return card->value;
+		}
+	}
+	return NULL;
+}
+
+void play_left(struct value *card_value, int slot_index, struct game *game) {
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
 	field = slot->field;
-	if (!apply(card, field, &slot->field, game))
+	if (!apply(card_value, field, &slot->field, game))
 		slot->field = ref_value(&I_value);
 	unref_value(field);
 }
 
-void play_right(int slot_index, struct value *card, struct game *game) {
+void play_right(int slot_index, struct value *card_value, struct game *game) {
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
 	field = slot->field;
-	if (!apply(field, card, &slot->field, game))
+	if (!apply(field, card_value, &slot->field, game))
 		slot->field = ref_value(&I_value);
 	unref_value(field);
 }

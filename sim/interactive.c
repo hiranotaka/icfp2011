@@ -7,30 +7,6 @@
 
 #define numberof(x) (sizeof(x) / sizeof(*(x)))
 
-struct card {
-	const char *name;
-	struct value *value;
-};
-
-#define CARD(name) { #name, &name##_value }
-
-static const struct card cards[] = {
-	CARD(I), CARD(zero), CARD(succ), CARD(dbl), CARD(get), CARD(put),
-	CARD(S), CARD(K), CARD(inc), CARD(dec), CARD(attack), CARD(help),
-	CARD(copy), CARD(revive),
-};
-
-static struct value *find_card_value(const char *name) {
-	int i;
-	for (i = 0; i < numberof(cards); i++) {
-		const struct card *card = &cards[i];
-		if (!strcmp(card->name, name)) {
-			return card->value;
-		}
-	}
-	return NULL;
-}
-
 static struct value *read_card_value(void) {
 	char line[16];
 	if (!fgets(line, sizeof(line), stdin))
