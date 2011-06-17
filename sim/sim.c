@@ -44,6 +44,7 @@ struct user {
 struct game {
 	struct user users[2];
 	int turn;
+	int nr_applications;
 };
 
 static inline struct value *create_value(void) {
@@ -80,6 +81,9 @@ static int apply(struct value *f, struct value *x, struct value **retp,
 		 struct game *game) {
 	struct value *g;
 	int i;
+
+	if (++game->nr_applications > 1000)
+		return 0;
 
 	if (f->type != TYPE_FUNCTION)
 		return 0;
@@ -372,38 +376,58 @@ static struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
-static void run_left(struct game *game) {
-	char line[16];
-	int slot_index;
+static void play_left(struct value *card_value, int slot_index,
+		       struct game *game) {
 	struct slot *slot;
-	struct value *card_value, *field;
-
-	if (!fgets(line, sizeof(line), stdin))
-		return;
-
-	line[strlen(line) - 1] = 0;
-	card_value = find_card_value(line);
-	if (!card_value)
-		return;
-
-	if (!fgets(line, sizeof(line), stdin))
-		return;
-
-	slot_index = atoi(line);
-	if (slot_index < 0 || slot_index >= 255)
-		return;
-
+	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
 	field = slot->field;
 	apply(card_value, field, &slot->field, game);
 	unref_value(field);
 }
 
-static void run_right(struct game *game) {
+static void play_right(int slot_index, struct value *card_value,
+			struct game *game) {
+	struct slot *slot;
+	struct value *field;
+	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
+	apply(field, card_value, &slot->field, game);
+	unref_value(field);
+}
+
+static void next_play(struct game *game) {
+	game->turn = 1 - game->turn;
+	game->nr_applications = 0;
+}
+
+static void play_interactive_left(struct game *game) {
 	char line[16];
 	int slot_index;
-	struct value *card_value, *field;
-	struct slot *slot;
+	struct value *card_value;
+
+	if (!fgets(line, sizeof(line), stdin))
+		return;
+
+	line[strlen(line) - 1] = 0;
+	card_value = find_card_value(line);
+	if (!card_value)
+		return;
+
+	if (!fgets(line, sizeof(line), stdin))
+		return;
+
+	slot_index = atoi(line);
+	if (slot_index < 0 || slot_index >= 255)
+		return;
+
+	play_left(card_value, slot_index, game);
+}
+
+static void play_interactive_right(struct game *game) {
+	char line[16];
+	int slot_index;
+	struct value *card_value;
 
 	if (!fgets(line, sizeof(line), stdin))
 		return;
@@ -419,10 +443,7 @@ static void run_right(struct game *game) {
 	if (!card_value)
 		return;
 
-	slot = &game->users[game->turn].slots[slot_index];
-	field = slot->field;
-	apply(field, card_value, &slot->field, game);
-	unref_value(field);
+	play_right(slot_index, card_value, game);
 }
 
 static const char *find_card_name(struct function *f) {
@@ -486,7 +507,7 @@ static void print_game(struct game *game) {
 	fprintf(stderr, "=== PRINT GAME END ===\n");
 }
 
-static void run(struct game *game) {
+static void play_interactive(struct game *game) {
 	char line[16];
 	int dir;
 
@@ -497,14 +518,14 @@ static void run(struct game *game) {
 
 	switch (dir) {
 	case 1:
-		run_left(game);
+		play_interactive_left(game);
 		break;
 	case 2:
-		run_right(game);
+		play_interactive_right(game);
 		break;
 	}
 
-	game->turn = 1 - game->turn;
+	next_play(game);
 }
 
 static void init_slot(struct slot *slot) {
@@ -520,16 +541,17 @@ static void init_user(struct user *user) {
 
 static void init_game(struct game *game) {
 	int i;
-	game->turn = 0;
 	for (i = 0; i < 2; i++)
 		init_user(&game->users[i]);
+	game->turn = 0;
+	game->nr_applications = 0;
 }
 
 int main(int argc, char *argv[]) {
 	int i;
 	struct game game;
 	init_game(&game);
-	for (i = 0; i < 1000; i++)
-		run(&game);
+	for (i = 0; i < 100000; i++)
+		play_interactive(&game);
 	return 0;
 }
