@@ -383,7 +383,7 @@ struct game *create_game(void) {
 }
 
 static void copy_slot(struct slot *old_slot, struct slot *new_slot) {
-	new_slot->field = ref_value(new_slot->field);
+	new_slot->field = ref_value(old_slot->field);
 	new_slot->vitality = old_slot->vitality;
 }
 
