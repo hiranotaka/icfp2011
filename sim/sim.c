@@ -368,7 +368,7 @@ static const struct card cards[] = {
 	CARD(copy), CARD(revive),
 };
 
-struct value *find_card_value(const char *name) {
+static struct value *find_card_value(const char *name) {
 	int i;
 	for (i = 0; i < numberof(cards); i++) {
 		const struct card *card = &cards[i];
@@ -379,7 +379,7 @@ struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
-void run_left(struct game *game) {
+static void run_left(struct game *game) {
 	char line[16];
 	int slot_number;
 	struct value *card_value, *slot_value;
@@ -406,7 +406,7 @@ void run_left(struct game *game) {
 	unref_value(slot_value);
 }
 
-void run_right(struct game *game) {
+static void run_right(struct game *game) {
 	char line[16];
 	int slot_number;
 	struct value *card_value, *slot_value;
@@ -433,7 +433,7 @@ void run_right(struct game *game) {
 	unref_value(slot_value);
 }
 
-const char *find_card_name(struct function *function) {
+static const char *find_card_name(struct function *function) {
 	int i;
 	for (i = 0; i < numberof(cards); i++) {
 		const struct card *card = &cards[i];
@@ -494,7 +494,7 @@ static void print_game(struct game *game) {
 	fprintf(stderr, "=== PRINT GAME END ===\n");
 }
 
-void run(struct game *game) {
+static void run(struct game *game) {
 	char line[16];
 	int dir;
 
