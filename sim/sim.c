@@ -5,7 +5,7 @@
 #define numberof(x) (sizeof(x) / sizeof(*(x)))
 
 enum type {
-	TYPE_NUMBER, TYPE_FUNCTION,
+	TYPE_INTEGER, TYPE_FUNCTION,
 };
 
 struct function;
@@ -13,28 +13,27 @@ struct value;
 struct game;
 
 struct function_operations {
-	int (*run)(struct function *function, struct value **retp,
-		   struct game *game);
+	int (*run)(struct function *f, struct value **retp, struct game *game);
 	int nr_required_args;
 };
 
 struct function {
 	const struct function_operations *ops;
 	int nr_args;
-	struct value* args[3];
+	struct value *args[3];
 };
 
 struct value {
 	enum type type;
 	int refcount;
 	union {
-		int number;
+		int integer;
 		struct function function;
 	};
 };
 
 struct slot {
-	struct value* field;
+	struct value *field;
 	int vitality;
 };
 
@@ -77,41 +76,44 @@ static inline void unref_value(struct value *field) {
 
 static void print_value(struct value *value);
 
-static int run_function(struct value *f, struct value *x,
-			struct value **retp, struct game *game) {
+static int apply(struct value *f, struct value *x, struct value **retp,
+		 struct game *game) {
+	struct value *g;
 	int i;
-	struct value *ret;
 
 	if (f->type != TYPE_FUNCTION)
 		return 0;
 
-	ret = create_value();
-	ret->type = TYPE_FUNCTION;
-	ret->function.ops = f->function.ops;
-	ret->function.nr_args = f->function.nr_args + 1;
-	for (i = 0; i < numberof(f->function.args); i++) {
-		ret->function.args[i] = ref_value(f->function.args[i]);
-	}
-	ret->function.args[f->function.nr_args] = ref_value(x);
-
-	if (ret->function.nr_args >= ret->function.ops->nr_required_args) {
-		ret->function.ops->run(&ret->function, retp, game);
-		unref_value(ret);
+	g = create_value();
+	g->type = TYPE_FUNCTION;
+	g->function.ops = f->function.ops;
+	g->function.nr_args = f->function.nr_args;
+	for (i = 0; i < numberof(f->function.args); i++)
+		g->function.args[i] = ref_value(f->function.args[i]);
+	g->function.args[g->function.nr_args++] = ref_value(x);
+	if (g->function.nr_args < g->function.ops->nr_required_args) {
+		*retp = g;
 		return 1;
 	}
 
-	*retp = ret;
+	g->function.ops->run(&g->function, retp, game);
+	unref_value(g);
 	return 1;
 }
 
-static int is_slot_number(struct value *i) {
-	return i->type == TYPE_NUMBER && i->number >= 0 && i->number < 256;
+static int is_slot_index(struct value *i) {
+	return i->type == TYPE_INTEGER && i->integer >= 0 && i->integer < 256;
 }
 
+struct value_info {
+	struct value *value;
+	const char* name;
+};
+
 static struct value zero_value = {
-	.type = TYPE_NUMBER,
+	.type = TYPE_INTEGER,
 	.refcount = 1,
-	.number = 0,
+	.integer = 0,
 };
 
 #define DEFINE_FUNCTION(name, nr_args)				\
@@ -129,59 +131,56 @@ static struct value zero_value = {
 	};
 
 
-static int I(struct function *function, struct value **retp,
-	      struct game *game) {
-	*retp = ref_value(function->args[0]);
+static int I(struct function *f, struct value **retp, struct game *game) {
+	*retp = ref_value(f->args[0]);
 	return 1;
 }
 DEFINE_FUNCTION(I, 1);
 
-static int succ(struct function *function, struct value **retp,
-		struct game *game) {
+static int succ(struct function *f, struct value **retp, struct game *game) {
 	struct value *n;
 	struct value *ret;
 
-	n = function->args[0];
-	if (n->type != TYPE_NUMBER)
+	n = f->args[0];
+	if (n->type != TYPE_INTEGER)
 		return 0;
 
 	ret = create_value();
-	ret->type = TYPE_NUMBER;
-	ret->number = n->number < 65535 ? n->number + 1 : 65535;
+	ret->type = TYPE_INTEGER;
+	ret->integer = n->integer < 65535 ? n->integer + 1 : 65535;
 
 	*retp = ret;
 	return 1;
 }
 DEFINE_FUNCTION(succ, 1);
 
-static int dbl(struct function *function, struct value **retp,
-	       struct game *game) {
+static int dbl(struct function *f, struct value **retp, struct game *game) {
 	struct value *n;
 	struct value *ret;
 
-	n = function->args[0];
-	if (n->type != TYPE_NUMBER)
+	n = f->args[0];
+	if (n->type != TYPE_INTEGER)
 		return 0;
 
 	ret = create_value();
-	ret->type = TYPE_NUMBER;
-	ret->number = n->number < 32768 ? 2 * n->number : 65535;
+	ret->type = TYPE_INTEGER;
+	ret->integer = n->integer < 32768 ? 2 * n->integer : 65535;
 
 	*retp = ret;
 	return 1;
 }
 DEFINE_FUNCTION(dbl, 1);
 
-static int get(struct function *function, struct value **retp,
+static int get(struct function *f, struct value **retp,
 	       struct game *game) {
 	struct value *i;
 	struct slot *slot;
 
-	i = function->args[0];
-	if (!is_slot_number(i))
+	i = f->args[0];
+	if (!is_slot_index(i))
 		return 0;
 
-	slot = &game->users[game->turn].slots[i->number];
+	slot = &game->users[game->turn].slots[i->integer];
 	if (slot->vitality < 0)
 		return 0;
 
@@ -190,25 +189,24 @@ static int get(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(get, 1);
 
-static int put(struct function *function, struct value **retp,
+static int put(struct function *f, struct value **retp,
 	       struct game *game) {
 	*retp = ref_value(&I_value);
 	return 1;
 }
 DEFINE_FUNCTION(put, 1);
 
-static int S(struct function *function, struct value **retp,
-	     struct game *game) {
+static int S(struct function *f, struct value **retp, struct game *game) {
 	struct value *h, *y;
 	int ret = 0;
 
-	if (!run_function(function->args[0], function->args[2], &h, game))
+	if (!apply(f->args[0], f->args[2], &h, game))
 		goto err;
 
-	if (!run_function(function->args[1], function->args[2], &y, game))
+	if (!apply(f->args[1], f->args[2], &y, game))
 		goto err_unref_value_h;
 
-	if (!run_function(h, y, retp, game))
+	if (!apply(h, y, retp, game))
 		goto err_unref_value_y;
 
 	ret = 1;
@@ -221,23 +219,21 @@ static int S(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(S, 3);
 
-static int K(struct function *function, struct value **retp,
-	     struct game *game) {
-	*retp = ref_value(function->args[0]);
+static int K(struct function *f, struct value **retp, struct game *game) {
+	*retp = ref_value(f->args[0]);
 	return 1;
 }
 DEFINE_FUNCTION(K, 2);
 
-static int inc(struct function *function, struct value **retp,
-	       struct game *game) {
+static int inc(struct function *f, struct value **retp, struct game *game) {
 	struct value *i;
 	struct slot *slot;
 
-	i = function->args[0];
-	if (!is_slot_number(i))
+	i = f->args[0];
+	if (!is_slot_index(i))
 		return 0;
 
-	slot = &game->users[game->turn].slots[i->number];
+	slot = &game->users[game->turn].slots[i->integer];
 	if (slot->vitality < 65535 || slot->vitality > 0)
 		slot->vitality++;
 
@@ -246,16 +242,15 @@ static int inc(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(inc, 1);
 
-static int dec(struct function *function, struct value **retp,
-	       struct game *game) {
+static int dec(struct function *f, struct value **retp, struct game *game) {
 	struct value *i;
 	struct slot *slot;
 
-	i = function->args[0];
-	if (!is_slot_number(i))
+	i = f->args[0];
+	if (!is_slot_index(i))
 		return 0;
 
-	slot = &game->users[1 - game->turn].slots[255 - i->number];
+	slot = &game->users[1 - game->turn].slots[255 - i->integer];
 	if (slot->vitality > 0)
 		slot->vitality--;
 
@@ -264,26 +259,25 @@ static int dec(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(dec, 1);
 
-static int attack(struct function *function, struct value **retp,
-		  struct game *game) {
+static int attack(struct function *f, struct value **retp, struct game *game) {
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
-	i = function->args[0];
-	j = function->args[1];
-	n = function->args[2];
-	if (!is_slot_number(i) || !is_slot_number(j))
+	i = f->args[0];
+	j = f->args[1];
+	n = f->args[2];
+	if (!is_slot_index(i) || !is_slot_index(j))
 		return 0;
 
-	slot0 = &game->users[game->turn].slots[i->number];
-	if (slot0->vitality < n->number)
+	slot0 = &game->users[game->turn].slots[i->integer];
+	if (slot0->vitality < n->integer)
 		return 0;
 
-	slot0->vitality -= n->number;
+	slot0->vitality -= n->integer;
 
-	slot1 = &game->users[1 - game->turn].slots[255 - j->number];
+	slot1 = &game->users[1 - game->turn].slots[255 - j->integer];
 	if (slot1->vitality > 0) {
-		slot1->vitality -= n->number * 9 / 10;
+		slot1->vitality -= n->integer * 9 / 10;
 		if (slot1->vitality < 0) {
 			slot1->vitality = 0;
 		}
@@ -294,26 +288,25 @@ static int attack(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(attack, 3);
 
-static int help(struct function *function, struct value **retp,
-		struct game *game) {
+static int help(struct function *f, struct value **retp, struct game *game) {
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
-	i = function->args[0];
-	j = function->args[1];
-	n = function->args[2];
-	if (!is_slot_number(i) || !is_slot_number(j))
+	i = f->args[0];
+	j = f->args[1];
+	n = f->args[2];
+	if (!is_slot_index(i) || !is_slot_index(j))
 		return 0;
 
-	slot0 = &game->users[game->turn].slots[i->number];
-	if (slot0->vitality < n->number)
+	slot0 = &game->users[game->turn].slots[i->integer];
+	if (slot0->vitality < n->integer)
 		return 0;
 
-	slot0->vitality -= n->number;
+	slot0->vitality -= n->integer;
 
-	slot1 = &game->users[game->turn].slots[j->number];
+	slot1 = &game->users[game->turn].slots[j->integer];
 	if (slot1->vitality > 0) {
-		slot1->vitality += n->number * 11 / 10;
+		slot1->vitality += n->integer * 11 / 10;
 		if (slot1->vitality > 65535) {
 			slot1->vitality = 65535;
 		}
@@ -324,29 +317,29 @@ static int help(struct function *function, struct value **retp,
 }
 DEFINE_FUNCTION(help, 3);
 
-static int copy(struct function *function, struct value **retp,
+static int copy(struct function *f, struct value **retp,
 		struct game *game) {
 	struct value *i;
 
-	i = function->args[0];
-	if (is_slot_number(i))
+	i = f->args[0];
+	if (is_slot_index(i))
 		return 0;
 
-	*retp = ref_value(game->users[game->turn].slots[i->number].field);
+	*retp = ref_value(game->users[game->turn].slots[i->integer].field);
 	return 1;
 }
 DEFINE_FUNCTION(copy, 1);
 
-static int revive(struct function *function, struct value **retp,
+static int revive(struct function *f, struct value **retp,
 		  struct game *game) {
 	struct value *i;
 	struct slot *slot;
 
-	i = function->args[0];
-	if (!is_slot_number(i))
+	i = f->args[0];
+	if (!is_slot_index(i))
 		return 0;
 
-	slot = &game->users[game->turn].slots[i->number];
+	slot = &game->users[game->turn].slots[i->integer];
 	if (slot->vitality <= 0)
 		slot->vitality = 1;
 
@@ -381,8 +374,9 @@ static struct value *find_card_value(const char *name) {
 
 static void run_left(struct game *game) {
 	char line[16];
-	int slot_number;
-	struct value *card_value, *slot_value;
+	int slot_index;
+	struct slot *slot;
+	struct value *card_value, *field;
 
 	if (!fgets(line, sizeof(line), stdin))
 		return;
@@ -395,27 +389,27 @@ static void run_left(struct game *game) {
 	if (!fgets(line, sizeof(line), stdin))
 		return;
 
-	slot_number = atoi(line);
-	if (slot_number < 0 || slot_number >= 255)
+	slot_index = atoi(line);
+	if (slot_index < 0 || slot_index >= 255)
 		return;
 
-	slot_value = game->users[game->turn].slots[slot_number].field;
-	run_function(card_value, slot_value,
-		     &game->users[game->turn].slots[slot_number].field,
-		     game);
-	unref_value(slot_value);
+	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
+	apply(card_value, field, &slot->field, game);
+	unref_value(field);
 }
 
 static void run_right(struct game *game) {
 	char line[16];
-	int slot_number;
-	struct value *card_value, *slot_value;
+	int slot_index;
+	struct value *card_value, *field;
+	struct slot *slot;
 
 	if (!fgets(line, sizeof(line), stdin))
 		return;
 
-	slot_number = atoi(line);
-	if (slot_number < 0 || slot_number >= 255)
+	slot_index = atoi(line);
+	if (slot_index < 0 || slot_index >= 255)
 		return;
 
 	if (!fgets(line, sizeof(line), stdin))
@@ -425,41 +419,39 @@ static void run_right(struct game *game) {
 	if (!card_value)
 		return;
 
-	slot_value = game->users[game->turn].slots[slot_number].field;
-	run_function(slot_value,
-		     card_value,
-		     &game->users[game->turn].slots[slot_number].field,
-		     game);
-	unref_value(slot_value);
+	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
+	apply(field, card_value, &slot->field, game);
+	unref_value(field);
 }
 
-static const char *find_card_name(struct function *function) {
+static const char *find_card_name(struct function *f) {
 	int i;
 	for (i = 0; i < numberof(cards); i++) {
 		const struct card *card = &cards[i];
 		struct value *value = card->value;
 		if (value->type == TYPE_FUNCTION &&
-		    value->function.ops == function->ops) {
+		    value->function.ops == f->ops) {
 			return card->name;
 		}
 	}
 	return NULL;
 }
 
-static void print_function(struct function *function) {
+static void print_function(struct function *f) {
 	int i;
-	fprintf(stderr, "%s", find_card_name(function));
-	for (i = 0; i < function->nr_args; i++) {
+	fprintf(stderr, "%s", find_card_name(f));
+	for (i = 0; i < f->nr_args; i++) {
 		fprintf(stderr, "(");
-		print_value(function->args[i]);
+		print_value(f->args[i]);
 		fprintf(stderr, ")");
 	}
 }
 
 static void print_value(struct value *value) {
 	switch (value->type) {
-	case TYPE_NUMBER:
-		fprintf(stderr, "%d", value->number);
+	case TYPE_INTEGER:
+		fprintf(stderr, "%d", value->integer);
 		break;
 	case TYPE_FUNCTION:
 		print_function(&value->function);
@@ -467,20 +459,20 @@ static void print_value(struct value *value) {
 	}
 }
 
-static void print_slot(int user_number, int slot_number, struct slot *slot) {
+static void print_slot(int user_index, int slot_index, struct slot *slot) {
 	if (slot->field != &I_value || slot->vitality != 10000) {
-		fprintf(stderr, "user = %d / slot = %d / field: ", user_number,
-			slot_number);
+		fprintf(stderr, "user = %d / slot = %d / field: ", user_index,
+			slot_index);
 		print_value(slot->field);
 		fprintf(stderr, ", vitality: %d\n", slot->vitality);
 	}
 }
 
 
-static void print_user(int user_number, struct user *user) {
+static void print_user(int user_index, struct user *user) {
 	int i;
 	for (i = 0; i < 256; i++) {
-		print_slot(user_number, i, &user->slots[i]);
+		print_slot(user_index, i, &user->slots[i]);
 	}
 }
 
