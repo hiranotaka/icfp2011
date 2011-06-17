@@ -31,7 +31,7 @@ static struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
-static struct value *read_card_value() {
+static struct value *read_card_value(void) {
 	char line[16];
 	if (!fgets(line, sizeof(line), stdin))
 		return NULL;
@@ -40,7 +40,7 @@ static struct value *read_card_value() {
 	return find_card_value(line);
 }
 
-static int read_slot_index() {
+static int read_slot_index(void) {
 	char line[16];
 	int slot_index;
 
