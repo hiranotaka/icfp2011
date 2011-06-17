@@ -41,6 +41,7 @@ static int apply(struct value *f, struct value *x, struct value **retp,
 {
 	struct value *g;
 	int i;
+	int completed;
 
 	if (++game->nr_applications > 1000)
 		return 0;
@@ -60,9 +61,9 @@ static int apply(struct value *f, struct value *x, struct value **retp,
 		return 1;
 	}
 
-	g->function.ops->run(&g->function, retp, game);
+	completed = g->function.ops->run(&g->function, retp, game);
 	unref_value(g);
-	return 1;
+	return completed;
 }
 
 static int is_slot_index(struct value *i)
@@ -314,7 +315,8 @@ void play_left(struct value *card, int slot_index, struct game *game) {
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
 	field = slot->field;
-	apply(card, field, &slot->field, game);
+	if (!apply(card, field, &slot->field, game))
+		slot->field = ref_value(&I_value);
 	unref_value(field);
 }
 
@@ -323,7 +325,8 @@ void play_right(int slot_index, struct value *card, struct game *game) {
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
 	field = slot->field;
-	apply(field, card, &slot->field, game);
+	if (!apply(field, card, &slot->field, game))
+		slot->field = ref_value(&I_value);
 	unref_value(field);
 }
 
