@@ -371,12 +371,15 @@ static void init_user(struct user *user) {
 		init_slot(&user->slots[i]);
 }
 
-void init_game(struct game *game) {
+struct game *create_game(void) {
+	struct game *game;
 	int i;
+	game = malloc(sizeof(struct game));
 	for (i = 0; i < 2; i++)
 		init_user(&game->users[i]);
 	game->turn = 0;
 	game->nr_applications = 0;
+	return game;
 }
 
 static void clean_slot(struct slot *slot) {
@@ -389,8 +392,9 @@ static void clean_user(struct user *user) {
 		clean_slot(&user->slots[i]);
 }
 
-void clean_game(struct game *game) {
+void destroy_game(struct game *game) {
 	int i;
 	for (i = 0; i < 2; i++)
 		clean_user(&game->users[i]);
+	free(game);
 }

@@ -9,6 +9,6 @@ clean:
 
 sim.o: types.h sim.h
 debug.o: types.h sim.h debug.h
-interactive.o: types.h sim.h debug.h
+interactive.o: sim.h debug.h
 
 .PHONY: clean

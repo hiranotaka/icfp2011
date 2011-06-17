@@ -24,7 +24,7 @@ void play_left(struct value *card_value, int slot_index, struct game *game);
 void play_right(int slot_index, struct value *card_value, struct game *game);
 void next_play(struct game *game);
 
-void init_game(struct game *game);
+struct game *create_game(void);
 void clean_game(struct game *game);
 
 #endif
