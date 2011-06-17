@@ -335,6 +335,17 @@ struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
+const char *find_card_name(const struct value *value) {
+	int i;
+	for (i = 0; i < numberof(cards); i++) {
+		const struct card *card = &cards[i];
+		if (card->value == value) {
+			return card->name;
+		}
+	}
+	return NULL;
+}
+
 void play_left(struct value *card_value, int slot_index, struct game *game) {
 	struct slot *slot;
 	struct value *field;

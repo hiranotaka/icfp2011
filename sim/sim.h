@@ -19,6 +19,7 @@ extern struct value help_value;
 extern struct value copy_value;
 extern struct value revive_value;
 struct value *find_card_value(const char *name);
+const char *find_card_name(const struct value *value);  // Not tested.
 
 void play_left(struct value *card_value, int slot_index, struct game *game);
 void play_right(int slot_index, struct value *card_value, struct game *game);
