@@ -1,5 +1,9 @@
-sim: sim.o
-	gcc -O2 -Wall -g -o $@ $<
+sim: sim.o debug.o interactive.o
+	gcc -O2 -Wall -g -o $@ $^
 
 .c.o:
 	gcc -O2 -Wall -g -c $<
+
+sim.o: types.h sim.h
+debug.o: types.h sim.h debug.h
+interactive.o: types.h sim.h debug.h
