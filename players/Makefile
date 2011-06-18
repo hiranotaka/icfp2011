@@ -1,13 +1,20 @@
-all: run nothing random
+all: run nothing random inc inc_fast
 
 run: ../sim/sim.o ltg_help_attack.o
 	g++ -O3 -Wall -g -o $@ $^
 
-nothing: ../sim/sim.o ltg_do_nothing.o
+nothing: ltg_do_nothing.o
 	g++ -O3 -Wall -g -o $@ $^
 
-random: ../sim/sim.o ltg_random.o
+random: ltg_random.o
 	g++ -O3 -Wall -g -o $@ $^
+
+inc: ltg_inc.o
+	g++ -O3 -Wall -g -o $@ $^
+
+inc_fast: ltg_inc_fast.o
+	g++ -O3 -Wall -g -o $@ $^
+
 
 sim.o:
 	make ../sim
