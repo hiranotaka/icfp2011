@@ -150,6 +150,12 @@ void DoWork() {
       }
     }
 
+    if (sv == 0) {
+      // This means we only have one slot which is alive. Later we should
+      // handle this, but for now simply give up.
+      while (1) _(PUT, 0);
+    }
+
     assert(sv > 0 && svi >= 0);
 
     CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
