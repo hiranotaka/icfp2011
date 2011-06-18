@@ -414,28 +414,6 @@ static int apply(struct value *f, struct value *x, struct value **retp,
 	return do_apply(f, x, retp, game);
 }
 
-void play_left(struct value *card_value, int slot_index, struct game *game)
-{
-	struct slot *slot;
-	struct value *field;
-	slot = &game->users[game->turn].slots[slot_index];
-	field = slot->field;
-	if (!apply(card_value, field, &slot->field, game))
-		slot->field = ref_value(&I_value);
-	unref_value(field);
-}
-
-void play_right(int slot_index, struct value *card_value, struct game *game)
-{
-	struct slot *slot;
-	struct value *field;
-	slot = &game->users[game->turn].slots[slot_index];
-	field = slot->field;
-	if (!apply(field, card_value, &slot->field, game))
-		slot->field = ref_value(&I_value);
-	unref_value(field);
-}
-
 static int user_dead(struct user *user)
 {
 	int i;
@@ -494,6 +472,30 @@ int switch_turn(struct game *game)
 
 	apply_zombies(game);
 	return 1;
+}
+
+int apply_cs(struct value *card_value, int slot_index, struct game *game)
+{
+	struct slot *slot;
+	struct value *field;
+	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
+	if (!apply(card_value, field, &slot->field, game))
+		slot->field = ref_value(&I_value);
+	unref_value(field);
+	return switch_turn(game);
+}
+
+int apply_sc(int slot_index, struct value *card_value, struct game *game)
+{
+	struct slot *slot;
+	struct value *field;
+	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
+	if (!apply(field, card_value, &slot->field, game))
+		slot->field = ref_value(&I_value);
+	unref_value(field);
+	return switch_turn(game);
 }
 
 static void init_slot(struct slot *slot)

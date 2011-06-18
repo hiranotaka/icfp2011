@@ -29,37 +29,43 @@ static int read_slot_index(void) {
 	return slot_index;
 }
 
-static void play_interactive_left(struct game *game) {
+static int apply_interactive_cs(struct game *game) {
 	int slot_index;
 	struct value *card_value;
 
 	card_value = read_card_value();
 	if (!card_value)
-		return;
+		goto err;
 
 	slot_index = read_slot_index();
 	if (slot_index < 0)
-		return;
+		goto err;
 
-	play_left(card_value, slot_index, game);
+	return apply_cs(card_value, slot_index, game);
+
+ err:
+	return switch_turn(game);
 }
 
-static void play_interactive_right(struct game *game) {
+static int apply_interactive_sc(struct game *game) {
 	int slot_index;
 	struct value *card_value;
 
 	slot_index = read_slot_index();
 	if (slot_index < 0)
-		return;
+		goto err;
 
 	card_value = read_card_value();
 	if (!card_value)
-		return;
+		goto err;
 
-	play_right(slot_index, card_value, game);
+	return apply_sc(slot_index, card_value, game);
+
+ err:
+	return switch_turn(game);
 }
 
-static void play_interactive(struct game *game) {
+static int apply_interactive(struct game *game) {
 	char line[16];
 	int dir;
 
@@ -70,20 +76,18 @@ static void play_interactive(struct game *game) {
 
 	switch (dir) {
 	case 1:
-		play_interactive_left(game);
-		break;
+		return apply_interactive_cs(game);
 	case 2:
-		play_interactive_right(game);
-		break;
+		return apply_interactive_sc(game);
+	default:
+		return switch_turn(game);
 	}
 }
 
 
 int main(int argc, char *argv[]) {
 	struct game *game = create_game();
-	do {
-		play_interactive(game);
-	} while (switch_turn(game));
+	while (apply_interactive(game));
 	destroy_game(game);
 	return 0;
 }
