@@ -196,7 +196,7 @@ void DoWork() {
       break;
     }
 
-    mv = GetVitality(mv, MY_PLAYER, G);
+    mv = GetVitality(mvi, MY_PLAYER, G);
   }
 }
 
