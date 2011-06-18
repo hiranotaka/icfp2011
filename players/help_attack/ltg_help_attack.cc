@@ -20,6 +20,23 @@ int GetMyVitality(int i, struct game* g) {
   return g->users[MY_PLAYER].slots[i].vitality;
 }
 
+const int INVALID_VALUE = -100000;
+
+int GetMyValue(int i, struct game* g) {
+  struct value* v = g->users[MY_PLAYER].slots[i].field;
+  if (v->type == TYPE_INTEGER)
+    return v->u.integer;
+  else
+    return INVALID_VALUE;
+}
+
+struct function* GetMyFunc(int i, struct game* g) {
+  struct value* v = g->users[MY_PLAYER].slots[i].field;
+  if (v->type == TYPE_FUNCTION)
+    return &(v->u.function);
+  return NULL;
+}
+
 void Opp() {
   int application_order;
   cin >> application_order;
@@ -77,6 +94,15 @@ void _(T lhs, U rhs) {
   Opp();
 }
 
+// If the ith slot is not I, call PUT.
+void MaybePut(int i) {
+  struct value* v = G->users[MY_PLAYER].slots[i].field;
+  if (v->type == TYPE_FUNCTION &&
+      string("I") == v->u.function.ops->name)
+    return;
+  _(PUT, i);
+}
+
 // Assumes that slot i has value zero.
 void ToN(int i, int n) {
   if (n != 0) {
@@ -92,6 +118,27 @@ void ToN(int i, int n) {
 void IToN(int i, int n) {
   _(i, ZERO);
   ToN(i, n);
+}
+
+// return true when revived
+bool ReviveIfDeath(int slot) {
+  if (GetMyVitality(slot, G) > 0) {
+    return false;
+  }
+
+  int alive = 0;
+  for (int i = 10; i < 255; ++i) {
+    if (GetMyVitality(i, G) > 1000) {
+      alive = i;
+      break;
+    }
+  }
+
+  _(PUT, alive); // alive : I
+  IToN(alive, slot); // alive : slot
+  _(REVIVE, alive); // revive slot
+
+  return true;
 }
 
 void Wrap(int i, Card c) {
@@ -146,8 +193,7 @@ void TryRevive() {
 }
 
 void DoWork() {
-  // Assumes 0: I
-  // _(PUT, 0);
+  MaybePut(0);
   IToN(0, 3);  // 0: 3
   _(GET, 0);  // 0: 8192
 
@@ -155,12 +201,18 @@ void DoWork() {
   for (int i = 0; i < 68; ++i) {
     // help(0)(1)(8192)
     // Assumes 0: 8192
+    if (GetMyValue(0, G) != 8192)
+      return;
+    MaybePut(1);
     IToN(1, 4);  // 1: 4
     _(GET, 1);  // 1: help(0)(1)
     CallWithSlot(1, 0);  // help(0)(1)(8192) -> I
 
     // help(1)(0)(8192)
     // Assumes 0: 8192
+    if (GetMyValue(0, G) != 8192)
+      return;
+    MaybePut(1);
     IToN(1, 5);  // 1: 5
     _(GET, 1);  // 1: help(1)(0)
     CallWithSlot(1, 0);  // help(1)(0)(8192) -> I
@@ -176,6 +228,9 @@ void DoWork() {
 
   // attack(0)(o)(11112)
   for (int i = 0; i < 5; ++i) {
+    if (GetMyValue(2, G) != 11112)
+      return;
+
     _(1, ZERO);  // 1: 0
     _(ATTACK, 1);  // 1: attack(0)
     _(0, ZERO);  // 0: 0
@@ -195,6 +250,9 @@ void DoWork() {
 
   // attack(1)(o)(11112)
   for (int i = 0; i < 5; ++i) {
+    if (GetMyValue(2, G) != 11112)
+      return;
+
     _(1, ZERO);  // 1: 0
     _(SUCC, 1);  // 1: 1
     _(ATTACK, 1);  // 1: attack(1)
@@ -214,26 +272,75 @@ void DoWork() {
   TryRevive();
 }
 
-void Work() {
+void SetUp() {
   // Precompute functions/values.
 
-  // 2: 11112
-  IToN(2, 11112);  // 2: 11112
+  for (int i = 0; i < 1000; ++i) {
+    // 2: 11112
+    if (GetMyValue(2, G) != 11112) {
+      MaybePut(2);
+      IToN(2, 11112);  // 2: 11112
+    }
+    if (ReviveIfDeath(2))
+      continue;
 
-  // 3: 8192
-  IToN(3, 8192);  // 3: 8192
+    // 3: 8192
+    if (GetMyValue(3, G) != 8192) {
+      MaybePut(3);
+      IToN(3, 8192);  // 3: 8192
+    }
+    if (ReviveIfDeath(2) || ReviveIfDeath(3))
+      continue;
 
-  // 4: help(0)(1)
-  _(4, HELP);  // 4: help
-  CallWithValue(4, 0);  // 4: help(0)
-  CallWithValue(4, 1);  // 4: help(0)(1)
+    // 4: help(0)(1)
+    struct function* func4 = GetMyFunc(4, G);
+    if (func4 == NULL ||
+	string("help") != func4->ops->name ||
+	func4->nr_args != 2 ||
+	func4->args[0]->type != TYPE_INTEGER ||
+	func4->args[0]->u.integer != 0 ||
+	func4->args[1]->type != TYPE_INTEGER ||
+	func4->args[1]->u.integer != 1) {
 
-  // 5: help(1)(0)
-  _(5, HELP);  // 5: help
-  CallWithValue(5, 1);  // 5: help(1)
-  CallWithValue(5, 0);  // 5: help(1)(0)
+      MaybePut(4);
+      _(4, HELP);  // 4: help
+      CallWithValue(4, 0);  // 4: help(0)
+      CallWithValue(4, 1);  // 4: help(0)(1)
+    }
+    if (ReviveIfDeath(2) ||
+	ReviveIfDeath(3) ||
+	ReviveIfDeath(4))
+      continue;
+      
+    // 5: help(1)(0)
+    struct function* func5 = GetMyFunc(4, G);
+    if (func5 == NULL ||
+	string("help") != func5->ops->name ||
+	func5->nr_args != 2 ||
+	func5->args[0]->type != TYPE_INTEGER ||
+	func5->args[0]->u.integer != 1 ||
+	func5->args[1]->type != TYPE_INTEGER ||
+	func5->args[1]->u.integer != 0) {
 
+      MaybePut(5);
+      _(5, HELP);  // 5: help
+      CallWithValue(5, 1);  // 5: help(1)
+      CallWithValue(5, 0);  // 5: help(1)(0)  
+    }
+
+    if (ReviveIfDeath(2) ||
+	ReviveIfDeath(3) ||
+	ReviveIfDeath(4) ||
+	ReviveIfDeath(5))
+      continue;
+
+    break;
+  }
+}
+
+void Work() {
   while (1) {
+    SetUp();
     DoWork();
   }
 }
