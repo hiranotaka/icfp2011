@@ -1,10 +1,12 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <queue>
 
 extern "C" {
 #include "../../sim/sim.h"
 #include "../../sim/types.h"
+#include "../../sim/debug.h"
 }
 
 struct game* G;
@@ -22,19 +24,35 @@ int GetMyVitality(int i, struct game* g) {
 
 const int INVALID_VALUE = -100000;
 
-int GetMyValue(int i, struct game* g) {
-  struct value* v = g->users[MY_PLAYER].slots[i].field;
+int GetValue(int i, int player, struct game* g) {
+  struct value* v = g->users[player].slots[i].field;
   if (v->type == TYPE_INTEGER)
     return v->u.integer;
   else
     return INVALID_VALUE;
 }
 
-struct function* GetMyFunc(int i, struct game* g) {
-  struct value* v = g->users[MY_PLAYER].slots[i].field;
+int GetMyValue(int i, struct game* g) {
+  return GetValue(i, MY_PLAYER, g);
+}
+
+int GetOppValue(int i, struct game* g) {
+  return GetValue(i, MY_PLAYER ? 0 : 1, g);
+}
+
+struct function* GetFunc(int i, int player, struct game* g) {
+  struct value* v = g->users[player].slots[i].field;
   if (v->type == TYPE_FUNCTION)
     return &(v->u.function);
   return NULL;
+}
+
+struct function* GetMyFunc(int i, struct game* g) {
+  return GetFunc(i, MY_PLAYER, g);
+}
+
+struct function* GetOppFunc(int i, struct game* g) {
+  return GetFunc(i, MY_PLAYER ? 0 : 1, g);
 }
 
 void Opp() {
@@ -192,6 +210,44 @@ void TryRevive() {
   }
 }
 
+
+int GetScore(int i, struct game* g) {
+  struct function* func = GetOppFunc(i, g);
+  if (func && string("I") != func->ops->name) {
+    return 20000 + i;
+  } else {
+    int value = GetOppValue(i, g);
+    if (value != INVALID_VALUE) {
+      int v = static_cast<int>(10000.0 * value / 6535);
+      return 10000 + v + i;
+    }
+  }
+  return i;
+}
+
+// Find alive target in [start, end)
+int FindTarget(int start, int end) {
+  if (end == 256) {
+    for (int i = 255; i >= 0; --i) {
+      if (GetOppVitality(i, G) > 0)
+	return i;
+    }
+  }
+  priority_queue< pair<int,int> > queue;
+  for (int i = start; i < end; ++i) {
+    if (GetOppVitality(i, G) > 0) {
+      int score = GetScore(i, G);
+      if (score > 0)
+	queue.push(make_pair(score, i));
+    }
+  }
+  if (queue.size() > 0) {
+    return queue.top().second;
+  } else {
+    return -1;
+  }
+}
+
 void DoWork() {
   MaybePut(0);
   IToN(0, 3);  // 0: 3
@@ -222,15 +278,29 @@ void DoWork() {
 
   _(PUT, 0);  // 0: I
 
-  static int o = 0;
-
-  // Using life of slot 0 and 1 kill opponent's slots repeatedly.
-
+  int count = 0;
+  // Using life of slot 0 and 1 kill opponent's slots
+  // repeatedly.
   // attack(0)(o)(11112)
-  for (int i = 0; i < 5; ++i) {
+  while (count < 5) {
+    int target = FindTarget(0, 256);
+    if (target < 0) {
+      return;
+    }
+    cerr << "target: " << target
+	 << " score: " << GetScore(target, G) << endl;
+    print_slot(MY_PLAYER?0:1, target,
+	       &G->users[MY_PLAYER?0:1].slots[target]);
+				    
     if (GetMyValue(2, G) != 11112)
       return;
-
+    
+    if (GetOppVitality(target, G) <= 0) {
+      // The target is dead.
+      continue;
+    }
+    int o = 255 - target;
+ 
     _(1, ZERO);  // 1: 0
     _(ATTACK, 1);  // 1: attack(0)
     _(0, ZERO);  // 0: 0
@@ -239,20 +309,27 @@ void DoWork() {
     CallWithSlot(1, 2);  // 1: attack(0)(o)(11112) -> I
     _(PUT, 0);  // 0: I
 
-    int target = 255 - o;
-    if (GetOppVitality(target, G) <= 0) {
-      // The opppent o is dead.
-      o++;
-    }
+    count++;
+
+    TryRevive();
   }
 
-  TryRevive();
-
+  count = 0;
   // attack(1)(o)(11112)
-  for (int i = 0; i < 5; ++i) {
+  while (count < 5) {
+    int target = FindTarget(0, 256);
+    if (target < 0) {
+      return;
+    }
     if (GetMyValue(2, G) != 11112)
       return;
-
+    
+    if (GetOppVitality(target, G) <= 0) {
+      // The target is dead.
+      continue;
+    }
+    int o = 255 - target;
+ 
     _(1, ZERO);  // 1: 0
     _(SUCC, 1);  // 1: 1
     _(ATTACK, 1);  // 1: attack(1)
@@ -262,14 +339,13 @@ void DoWork() {
     CallWithSlot(1, 2);  // 1: attack(1)(o)(11112) -> I
     _(PUT, 0);  // 0: I
 
-    int target = 255 - o;
-    if (GetOppVitality(target, G) <= 0) {
-      // The opppent o is dead.
-      o++;
+    if (GetScore(target, G) - target > 2) {
+      ;//
     }
-  }
 
-  TryRevive();
+    count++;
+    TryRevive();
+  }
 }
 
 void SetUp() {
