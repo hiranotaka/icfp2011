@@ -16,6 +16,10 @@ int GetOppVitality(int i, struct game* g) {
   return g->users[MY_PLAYER == 0 ? 1 : 0].slots[i].vitality;
 }
 
+int GetMyVitality(int i, struct game* g) {
+  return g->users[MY_PLAYER].slots[i].vitality;
+}
+
 void Opp() {
   int application_order;
   cin >> application_order;
@@ -24,15 +28,14 @@ void Opp() {
     int slot_number;
     cin >> card_name >> slot_number;
     struct value* v = find_card_value(card_name.c_str());
-    play_left(v, slot_number, G);
+    apply_cs(v, slot_number, G);
   } else {
     int slot_number;
     string card_name;
     cin >> slot_number >> card_name;
     struct value* v = find_card_value(card_name.c_str());
-    play_right(slot_number, v, G);
+    apply_sc(slot_number, v, G);
   }
-  switch_turn(G);
 }
 
 const char* card_names[] = {
@@ -56,7 +59,7 @@ void __(Card c, int i, struct game* g) {
   cout << card_names[static_cast<int>(c)] << endl;
   cout << i << endl;
   struct value* v = find_card_value(card_names[c]);
-  play_left(v, i, g);
+  apply_cs(v, i, g);
 }
 
 template<>
@@ -65,13 +68,12 @@ void __(int i, Card c, struct game* g) {
   cout << i << endl;
   cout << card_names[static_cast<int>(c)] << endl;
   struct value* v = find_card_value(card_names[c]);
-  play_right(i, v, g);
+  apply_sc(i, v, g);
 }
 
 template<typename T, typename U>
 void _(T lhs, U rhs) {
   __(lhs, rhs, G);
-  switch_turn(G);
   Opp();
 }
 
@@ -126,6 +128,23 @@ void CallWithValue(int i, int j) {
   _(i, ZERO);  // i: F(succ(succ(...(zero)...)))
 }
 
+void TryRevive() {
+  int alive = 0;
+  for (int i = 10; i < 255; ++i) {
+    if (GetMyVitality(i, G) > 1000) {
+      alive = i;
+      break;
+    }
+  }
+  for (int i = 0; i < 255; ++i) {
+    if (GetMyVitality(i, G) <= 0) {
+      _(PUT, alive); // alive : I
+      IToN(alive, i); // alive : i
+      _(REVIVE, alive); // revive i
+    }
+  }
+}
+
 void DoWork() {
   // Assumes 0: I
   // _(PUT, 0);
@@ -145,6 +164,8 @@ void DoWork() {
     IToN(1, 5);  // 1: 5
     _(GET, 1);  // 1: help(1)(0)
     CallWithSlot(1, 0);  // help(1)(0)(8192) -> I
+
+    TryRevive();
   }
 
   _(PUT, 0);  // 0: I
@@ -170,6 +191,8 @@ void DoWork() {
     }
   }
 
+  TryRevive();
+
   // attack(1)(o)(11112)
   for (int i = 0; i < 5; ++i) {
     _(1, ZERO);  // 1: 0
@@ -187,6 +210,8 @@ void DoWork() {
       o++;
     }
   }
+
+  TryRevive();
 }
 
 void Work() {
