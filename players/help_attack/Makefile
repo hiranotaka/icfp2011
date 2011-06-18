@@ -1,4 +1,4 @@
-run: ../../sim/sim.o ../../sim/debug.o ltg_help_attack.o sim_util.o
+run: ../../sim/sim.o ../../sim/debug.o main.o sim_util.o
 	g++ -O3 -Wall -g -o $@ $^
 
 sim.o:
