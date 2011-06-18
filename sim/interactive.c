@@ -76,16 +76,14 @@ static void play_interactive(struct game *game) {
 		play_interactive_right(game);
 		break;
 	}
-
-	next_play(game);
 }
 
 
 int main(int argc, char *argv[]) {
-	int i;
 	struct game *game = create_game();
-	for (i = 0; i < 200000; i++)
+	do {
 		play_interactive(game);
+	} while (switch_turn(game));
 	destroy_game(game);
 	return 0;
 }

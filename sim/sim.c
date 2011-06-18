@@ -37,8 +37,8 @@ static inline void unref_value(struct value *field)
 		destroy_value(field);
 }
 
-static int apply(struct value *f, struct value *x, struct value **retp,
-		 struct game *game)
+static int do_apply(struct value *f, struct value *x, struct value **retp,
+		    struct game *game)
 {
 	struct value *g;
 	int i;
@@ -161,13 +161,13 @@ static int S(struct function *f, struct value **retp, struct game *game) {
 	struct value *h, *y;
 	int ret = 0;
 
-	if (!apply(f->args[0], f->args[2], &h, game))
+	if (!do_apply(f->args[0], f->args[2], &h, game))
 		goto err;
 
-	if (!apply(f->args[1], f->args[2], &y, game))
+	if (!do_apply(f->args[1], f->args[2], &y, game))
 		goto err_unref_value_h;
 
-	if (!apply(h, y, retp, game))
+	if (!do_apply(h, y, retp, game))
 		goto err_unref_value_y;
 
 	ret = 1;
@@ -195,8 +195,13 @@ static int inc(struct function *f, struct value **retp, struct game *game) {
 		return 0;
 
 	slot = &game->users[game->turn].slots[i->integer];
-	if (slot->vitality < 65535 || slot->vitality > 0)
-		slot->vitality++;
+	if (!game->zombie) {
+		if (slot->vitality < 65535 || slot->vitality > 0)
+			slot->vitality++;
+	} else {
+		if (slot->vitality > 0)
+			slot->vitality--;
+	}
 
 	*retp = ref_value(&I_value);
 	return 1;
@@ -212,8 +217,13 @@ static int dec(struct function *f, struct value **retp, struct game *game) {
 		return 0;
 
 	slot = &game->users[1 - game->turn].slots[255 - i->integer];
-	if (slot->vitality > 0)
-		slot->vitality--;
+	if (!game->zombie) {
+		if (slot->vitality > 0)
+			slot->vitality--;
+	} else {
+		if (slot->vitality < 65535 || slot->vitality > 0)
+			slot->vitality++;
+	}
 
 	*retp = ref_value(&I_value);
 	return 1;
@@ -237,10 +247,17 @@ static int attack(struct function *f, struct value **retp, struct game *game) {
 	slot0->vitality -= n->integer;
 
 	slot1 = &game->users[1 - game->turn].slots[255 - j->integer];
-	if (slot1->vitality > 0) {
-		slot1->vitality -= n->integer * 9 / 10;
-		if (slot1->vitality < 0) {
-			slot1->vitality = 0;
+	if (!game->zombie) {
+		if (slot1->vitality > 0) {
+			slot1->vitality -= n->integer * 9 / 10;
+			if (slot1->vitality < 0)
+				slot1->vitality = 0;
+		}
+	} else {
+		if (slot1->vitality > 0) {
+			slot1->vitality += n->integer * 9 / 10;
+			if (slot1->vitality > 65535)
+				slot1->vitality = 65535;
 		}
 	}
 
@@ -266,10 +283,17 @@ static int help(struct function *f, struct value **retp, struct game *game) {
 	slot0->vitality -= n->integer;
 
 	slot1 = &game->users[game->turn].slots[j->integer];
-	if (slot1->vitality > 0) {
-		slot1->vitality += n->integer * 11 / 10;
-		if (slot1->vitality > 65535) {
-			slot1->vitality = 65535;
+	if (!game->zombie) {
+		if (slot1->vitality > 0) {
+			slot1->vitality += n->integer * 11 / 10;
+			if (slot1->vitality > 65535)
+				slot1->vitality = 65535;
+		}
+	} else {
+		if (slot1->vitality > 0) {
+			slot1->vitality -= n->integer * 11 / 10;
+			if (slot1->vitality > 65535)
+				slot1->vitality = 65535;
 		}
 	}
 
@@ -364,6 +388,12 @@ const char *find_card_name(const struct value *value) {
 	return NULL;
 }
 
+static int apply(struct value *f, struct value *x, struct value **retp,
+		 struct game *game) {
+	game->nr_applications = 0;
+	return do_apply(f, x, retp, game);
+}
+
 void play_left(struct value *card_value, int slot_index, struct game *game) {
 	struct slot *slot;
 	struct value *field;
@@ -384,9 +414,59 @@ void play_right(int slot_index, struct value *card_value, struct game *game) {
 	unref_value(field);
 }
 
-void next_play(struct game *game) {
+static int user_dead(struct user *user) {
+	int i;
+	for (i = 0; i < 256; i++) {
+		if (user->slots[i].vitality > 0)
+			return 0;
+	}
+	return 1;
+}
+
+static int game_dead(struct game *game) {
+	int i;
+	for (i = 0; i < 2; i++) {
+		if (user_dead(&game->users[i]))
+			return 1;
+	}
+	return 0;
+}
+
+static void apply_zombie(struct slot *slot, struct game *game) {
+	if (slot->vitality > 0)
+		return;
+
+	struct value *ret;
+	if (apply(slot->field, &I_value, &ret, game))
+		unref_value(ret);
+
+	slot->field = ref_value(&I_value);
+	slot->vitality = 0;
+}
+
+static void apply_zombies(struct game *game) {
+	struct user *user;
+	int i;
+
+	game->zombie = 1;
+	user = &game->users[game->turn];
+	for (i = 0; i < 256; i++) {
+		apply_zombie(&user->slots[i], game);
+	}
+	game->zombie = 0;
+}
+
+int switch_turn(struct game *game) {
+	if (game_dead(game))
+		return 0;
+
+	if (++game->nr_turns >= 2000000)
+		return 0;
+
 	game->turn = 1 - game->turn;
-	game->nr_applications = 0;
+
+	apply_zombies(game);
+	return 1;
 }
 
 static void init_slot(struct slot *slot) {
@@ -406,8 +486,8 @@ struct game *create_game(void) {
 	game = malloc(sizeof(struct game));
 	for (i = 0; i < 2; i++)
 		init_user(&game->users[i]);
+	game->nr_turns = 0;
 	game->turn = 0;
-	game->nr_applications = 0;
 	return game;
 }
 
@@ -428,6 +508,7 @@ struct game *dup_game(struct game* old_game) {
 	new_game = malloc(sizeof(struct game));
 	for (i = 0; i < 2; i++)
 		copy_user(&old_game->users[i], &new_game->users[i]);
+	new_game->nr_turns = old_game->nr_turns;
 	new_game->turn = old_game->turn;
 	new_game->nr_applications = old_game->nr_applications;
 	return new_game;

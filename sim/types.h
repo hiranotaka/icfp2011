@@ -41,7 +41,9 @@ struct user {
 
 struct game {
 	struct user users[2];
+	int nr_turns;
 	int turn;
+	int zombie;
 	int nr_applications;
 };
 

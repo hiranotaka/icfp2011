@@ -24,7 +24,7 @@ const char *find_card_name(const struct value *value);  // Not tested.
 
 void play_left(struct value *card_value, int slot_index, struct game *game);
 void play_right(int slot_index, struct value *card_value, struct game *game);
-void next_play(struct game *game);
+int switch_turn(struct game *game);
 
 struct game *create_game(void);
 struct game *dup_game(struct game *game);  // Not tested.
