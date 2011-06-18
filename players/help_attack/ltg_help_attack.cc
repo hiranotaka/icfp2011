@@ -163,12 +163,8 @@ void DoWork() {
     CallWithSlot(1, 2);  // 1: attack(0)(o)(11112) -> I
     _(PUT, 0);  // 0: I
 
-    cerr << "turn " << G->turn << endl;
-    cerr << "nr_turn " << G->nr_turns << endl;
-    cerr << "vitality " << o
-	 << " -> " + GetOppVitality(o, G);
-
-    if (GetOppVitality(o, G) <= 0) {
+    int target = 255 - o;
+    if (GetOppVitality(target, G) <= 0) {
       // The opppent o is dead.
       o++;
     }
@@ -185,11 +181,8 @@ void DoWork() {
     CallWithSlot(1, 2);  // 1: attack(1)(o)(11112) -> I
     _(PUT, 0);  // 0: I
 
-    cerr << "turn " << G->turn << endl;
-    cerr << "vitality " << o
-	 << " -> " + GetOppVitality(o, G);
-
-    if (GetOppVitality(o, G) <= 0) {
+    int target = 255 - o;
+    if (GetOppVitality(target, G) <= 0) {
       // The opppent o is dead.
       o++;
     }
