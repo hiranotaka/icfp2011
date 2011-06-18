@@ -283,7 +283,7 @@ static int copy(struct function *f, struct value **retp, struct game *game)
 	struct value *i;
 
 	i = f->args[0];
-	if (is_slot_index(i))
+	if (!is_slot_index(i))
 		return 0;
 
 	*retp = ref_value(game->users[game->turn].slots[i->integer].field);
