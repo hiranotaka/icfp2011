@@ -170,10 +170,15 @@ void DoWork() {
     int avi = -1;  // Number of slot which have maximum vitality in opponent.
     for (int i = 0; i < 256; ++i) {
       int v = GetVitality(i, 1 - MY_PLAYER, G);
-      if (v > 0 && av < v) {
+      if (av < v) {
         av = v;
         avi = i;
       }
+    }
+
+    if (av == 0) {
+      // We should have won!
+      return;
     }
 
     assert(av > 0 && avi >= 0);
