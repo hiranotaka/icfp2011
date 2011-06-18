@@ -16,10 +16,10 @@ void print_function(const struct function *f) {
 void print_value(const struct value *value) {
 	switch (value->type) {
 	case TYPE_INTEGER:
-		fprintf(stderr, "%d", value->integer);
+		fprintf(stderr, "%d", value->u.integer);
 		break;
 	case TYPE_FUNCTION:
-		print_function(&value->function);
+		print_function(&value->u.function);
 		break;
 	}
 }

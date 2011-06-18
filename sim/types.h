@@ -27,7 +27,7 @@ struct value {
 	union {
 		int integer;
 		struct function function;
-	};
+	} u;
 };
 
 struct slot {
