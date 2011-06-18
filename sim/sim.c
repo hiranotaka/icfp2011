@@ -480,10 +480,15 @@ int apply_cs(struct value *card_value, int slot_index, struct game *game)
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
+	if (slot->vitality <= 0)
+		goto err;
 	field = slot->field;
 	if (!apply(card_value, field, &slot->field, game))
-		slot->field = ref_value(&I_value);
+		goto err;
 	unref_value(field);
+	return switch_turn(game);
+ err:
+	slot->field = ref_value(&I_value);
 	return switch_turn(game);
 }
 
@@ -492,10 +497,15 @@ int apply_sc(int slot_index, struct value *card_value, struct game *game)
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
+	if (slot->vitality <= 0)
+		goto err;
 	field = slot->field;
 	if (!apply(field, card_value, &slot->field, game))
-		slot->field = ref_value(&I_value);
+		goto err;
 	unref_value(field);
+	return switch_turn(game);
+ err:
+	slot->field = ref_value(&I_value);
 	return switch_turn(game);
 }
 
