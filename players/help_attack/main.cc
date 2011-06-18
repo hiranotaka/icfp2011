@@ -126,28 +126,22 @@ void Wrap(int i, Card c) {
 
 void WrapSuccN(int i, int n) {
   if (n == 0) return;
-  WrapSuccN(i, n / 2);
-  Wrap(i, DBL);
   if (n & 1) Wrap(i, SUCC);
+  if (n / 2) Wrap(i, DBL), WrapSuccN(i, n / 2);
 }
 
 // Calls a function at slot i with a value at slot j.
 void CallWithSlot(int i, int j) {
   // i: F
   Wrap(i, GET);  // i: S(K(F))(get)
-  //WrapSuccN(i, j);
-  for (int k = 0; k < j; ++k) {
-    Wrap(i, SUCC);  // i: S(K(S(K(F))(get)))(succ)
-  }
+  WrapSuccN(i, j);
   _(i, ZERO);  // i: F(get(succ(succ(...(zero)...))))
 }
 
 // Calls a function at slot i with a value j
 void CallWithValue(int i, int j) {
   // i: F
-  for (int k = 0; k < j; ++k) {
-    Wrap(i, SUCC);  // i: S(K(F))(succ)
-  }
+  WrapSuccN(i, j);
   _(i, ZERO);  // i: F(succ(succ(...(zero)...)))
 }
 
@@ -195,6 +189,37 @@ int GetScore(int i, struct game* g) {
   return i;
 }
 
+
+void Zombie(int target) {
+  int tmp = 0;
+  for (int i = 20; i < 255; ++i) {
+    if (GetMyVitality(i, G) > 0)
+      tmp = i;
+  }
+  if (tmp <= 0)
+    return;
+
+  MaybePut(tmp);
+  IToN(tmp, 255 - target);  // tmp : target - 255
+  _(ZOMBIE, tmp);   // tmp : zombie(target - 255)
+  _(tmp, I);  // tmp : zomvie(target - 255, I)
+  if (DEBUG)
+    cerr << "zomvie!!" << endl;
+}
+
+void MaybeZombie(int target) {
+  if (GetOppVitality(target, G) == 0) {
+    if (DEBUG) {
+      cerr << "kill " << target << endl;
+      print_slot(OPP_PLAYER, target, &G->users[OPP_PLAYER].slots[target]);
+    }
+    struct function* func = GetOppFunc(target, G);
+    if (func && GetFuncLength(func) > 5) {
+      Zombie(target);
+    }
+  }
+}
+
 // Find alive target in [start, end)
 int FindTarget(int start, int end) {
   for (int i = 255; i >= 0; --i) {
@@ -217,141 +242,85 @@ int FindTarget(int start, int end) {
 }
 
 void DoWork() {
-  MaybePut(0);
-  IToN(0, 3);  // 0: 3
-  _(GET, 0);  // 0: 8192
-
-  // Repeat help(0)(1)(8192) and help(1)(0)(8192) to increase life.
-  for (int i = 0; i < 68; ++i) {
-    // help(0)(1)(8192)
-    // Assumes 0: 8192
-    if (GetMyValue(0, G) != 8192)
-      return;
-    MaybePut(1);
-    IToN(1, 4);  // 1: 4
-    _(GET, 1);  // 1: help(0)(1)
-    CallWithSlot(1, 0);  // help(0)(1)(8192) -> I
-
-    // help(1)(0)(8192)
-    // Assumes 0: 8192
-    if (GetMyValue(0, G) != 8192)
-      return;
-    MaybePut(1);
-    IToN(1, 5);  // 1: 5
-    _(GET, 1);  // 1: help(1)(0)
-    CallWithSlot(1, 0);  // help(1)(0)(8192) -> I
-
-    TryRevive();
+  int mv = -1;  // Maximum vitality.
+  int mvi = -1;  // Slot number of maximum vitality.
+  for (int i = 0; i < 256; ++i) {
+    int v = GetMyVitality(i, G);
+    if (mv < v) {
+      mv = v;
+      mvi = i;
+    }
   }
 
-  _(PUT, 0);  // 0: I
+  assert(mv > 0 && mvi >= 0);
 
-  int count = 0;
-  // Using life of slot 0 and 1 kill opponent's slots
-  // repeatedly.
-  // attack(0)(o)(11112)
-  while (count < 5) {
-    int target = FindTarget(0, 256);
-    if (target < 0) {
-      return;
-    }
-    if (DEBUG) {
-      cerr << "target: " << target
-	   << " score: " << GetScore(target, G)
-	   << " vitality: " << GetOppVitality(target, G) << endl;
-      print_slot(OPP_PLAYER, target,
-		 &(G->users[OPP_PLAYER].slots[target]));
-    }
+  while (mv < 65535) {
+    _(PUT, mvi);  // mvi: I
+    IToN(mvi, mvi);  // mvi: mvi
+    _(HELP, mvi);  // mvi: help(mvi)
 
-    //if (GetMyValue(2, G) != 11112)
-    //  return;
-    
-    //if (GetOppVitality(target, G) <= 0) {
-      // The target is dead.
-    //  continue;
-    //}
-    int o = 255 - target;
- 
-    _(1, ZERO);  // 1: 0
-    _(ATTACK, 1);  // 1: attack(0)
-    _(0, ZERO);  // 0: 0
-    ToN(0, o);  // 0: o
-
-    CallWithSlot(1, 0);  // 1: attack(0)(o)
-    CallWithSlot(1, 2);  // 1: attack(0)(o)(11112) -> I
-    _(PUT, 0);  // 0: I
-    
-
-    if (DEBUG) {
-      cerr << "a target: " << target
-	   << "a score: " << GetScore(target, G)
-	   << "a vitality: " << GetOppVitality(target, G) << endl;
-      print_slot(OPP_PLAYER, target,
-		 &(G->users[OPP_PLAYER].slots[target]));
-    }
-
-    count++;
-
-    struct function* func = GetOppFunc(target, G);
-    if (func && GetFuncLength(func) > 5) {
-      ToN(9, o);
-      _(ZOMBIE, 9); // zombie(o)
-      _(9, I); // zombie(o, I)
-      if (DEBUG) {
-	cerr << "zombie(" << target << ", I)" << endl;
+    int sv = -1;  // Second largest vitality.
+    int svi = -1;  // Slot number of second largest vitality.
+    for (int i = 0; i < 256; ++i) {
+      if (i == mvi) continue;
+      int v = GetMyVitality(i, G);
+      if (sv < v) {
+        sv = v;
+        svi = i;
       }
     }
 
-    TryRevive();
+    assert(sv > 0 && svi >= 0);
+
+    CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
+    int move = min(mv - 100, 65535 - sv);  // We leave at least 100 life.
+    CallWithValue(mvi, move);  // mvi: I
+    mv = GetMyVitality(svi, G);
+    mvi = svi;
   }
 
-  return;
-
-  count = 0;
-  // attack(1)(o)(11112)
-  while (count < 5) {
-    int target = FindTarget(0, 256);
-    if (target < 0) {
-      return;
-    }
-    if (GetMyValue(2, G) != 11112)
-      return;
-   
-    if (GetOppVitality(target, G) <= 0) {
-      // The target is dead.
-      continue;
-    }
-    int o = 255 - target;
-
-    if (DEBUG) {
-      cerr << "target: " << target
-	   << " score: " << GetScore(target, G) << endl;
-      print_slot(MY_PLAYER?0:1, target,
-		 &G->users[MY_PLAYER?0:1].slots[target]);
-    }
- 
-    _(1, ZERO);  // 1: 0
-    _(SUCC, 1);  // 1: 1
-    _(ATTACK, 1);  // 1: attack(1)
-    _(0, ZERO);  // 0: 0
-    ToN(0, o);  // 0: o
-
-    CallWithSlot(1, 0);  // 1: attack(1)(o)
-    CallWithSlot(1, 2);  // 1: attack(1)(o)(11112) -> I
-    _(PUT, 0);  // 0: I
-
-    struct function* func = GetOppFunc(target, G);
-    if (func && GetFuncLength(func) > 5) {
-      ToN(9, o);
-      if (DEBUG) {
-	cerr << "zombie(" << target << ", I)" << endl;
+  while (mv > 10000) {
+    int av = -1;  // Maximum vitality in opponent.
+    int avi = -1;  // Number of slot which have maximum vitality in opponent.
+    for (int i = 0; i < 256; ++i) {
+      int v = GetOppVitality(i, G);
+      if (v > 0 && av < v) {
+        av = v;
+        avi = i;
       }
-      _(ZOMBIE, 9); // zombie(o)
-      _(9, I);
     }
 
-    count++;
-    TryRevive();
+    assert(av > 0 && avi >= 0);
+
+    // av could be increased so we add 100.
+    int attack = min(av * 10 / 9 + 100, mv - 10000);
+
+    // attack(mvi)(255 - avi)(av)
+    _(PUT, mvi);  // mvi: I
+    IToN(mvi, mvi);  // mvi: mvi
+    _(ATTACK, mvi);  // mvi: attack(mvi)
+    CallWithValue(mvi, 255 - avi);  // mvi: attack(mvi)(255 - avi)
+
+    MaybeZombie(avi);
+
+    // We want to simply do CallWithValue(mvi, attack) here, but this takes time
+    // and before we become to be able to attack, opponent may move his life to
+    // other slot using help. Thus instead of that we take fast approach.
+    //CallWithValue(mvi, attack);  // mvi: attack(mvi)(255 - avi)(attack)
+
+    // Fast approach.
+    for (int i = 0; i < 256; ++i) {
+      if (i == mvi) continue;
+      if (GetMyVitality(i, G) == 0) continue;
+      _(PUT, i);
+      IToN(i, attack);
+      CallWithSlot(mvi, i);
+
+      MaybeZombie(avi);
+      break;
+    }
+
+    mv = GetMyVitality(mvi, G);
   }
 }
 
@@ -423,8 +392,8 @@ void SetUp() {
 
 void Work() {
   while (1) {
-    SetUp();
     DoWork();
+    TryRevive();
   }
 }
 
