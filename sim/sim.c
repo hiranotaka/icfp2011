@@ -311,6 +311,28 @@ static int revive(struct function *f, struct value **retp,
 }
 DEFINE_FUNCTION(revive, 1);
 
+static int zombie(struct function *f, struct value **retp,
+		  struct game *game) {
+	struct value *i, *x;
+	struct slot *slot;
+
+	i = f->args[0];
+	x = f->args[0];
+	if (!is_slot_index(i))
+		return 0;
+
+	slot = &game->users[1 - game->turn].slots[255 - i->integer];
+	if (slot->vitality > 0)
+		return 0;
+
+	slot->field = ref_value(x);
+	slot->vitality = -1;
+
+	*retp = ref_value(&I_value);
+	return 1;
+}
+DEFINE_FUNCTION(zombie, 1);
+
 struct card {
 	const char *name;
 	struct value *value;
@@ -321,7 +343,7 @@ struct card {
 static const struct card cards[] = {
 	CARD(I), CARD(zero), CARD(succ), CARD(dbl), CARD(get), CARD(put),
 	CARD(S), CARD(K), CARD(inc), CARD(dec), CARD(attack), CARD(help),
-	CARD(copy), CARD(revive),
+	CARD(copy), CARD(revive), CARD(zombie),
 };
 
 struct value *find_card_value(const char *name) {
