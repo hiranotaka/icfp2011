@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <iostream>
 #include <string>
 
@@ -30,7 +31,7 @@ void Opp() {
 
 int main(int argc, char** argv) {
   if (argc == 1) return 0;
-  if (argv[1] == "1") Opp();
+  if (argv[1][0] == '1') Opp();
   while (1) {
     Self();
     Opp();
