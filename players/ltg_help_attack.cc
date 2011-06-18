@@ -20,15 +20,14 @@ void Opp() {
     int slot_number;
     cin >> card_name >> slot_number;
     struct value* v = find_card_value(card_name.c_str());
-    play_left(v, slot_number, G);
+    apply_cs(v, slot_number, G);
   } else {
     int slot_number;
     string card_name;
     cin >> slot_number >> card_name;
     struct value* v = find_card_value(card_name.c_str());
-    play_right(slot_number, v, G);
+    apply_sc(slot_number, v, G);
   }
-  switch_turn(G);
 }
 
 const char* card_names[] = {
@@ -52,7 +51,7 @@ void __(Card c, int i, struct game* g) {
   cout << card_names[c] << endl;
   cout << i << endl;
   struct value* v = find_card_value(card_names[c]);
-  play_left(v, i, g);
+  apply_cs(v, i, g);
 }
 
 template<>
@@ -61,7 +60,7 @@ void __(int i, Card c, struct game* g) {
   cout << i << endl;
   cout << card_names[c] << endl;
   struct value* v = find_card_value(card_names[c]);
-  play_right(i, v, g);
+  apply_sc(i, v, g);
 }
 
 template<typename T, typename U>
