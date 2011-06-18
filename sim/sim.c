@@ -363,6 +363,7 @@ static int zombie(struct function *f, struct value **retp, struct game *game)
 	if (slot->vitality > 0)
 		return 0;
 
+	unref_value(slot->field);
 	slot->field = ref_value(x);
 	slot->vitality = -1;
 
