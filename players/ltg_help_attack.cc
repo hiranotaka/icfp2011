@@ -3,6 +3,13 @@
 #include <iostream>
 #include <string>
 
+extern "C" {
+#include "../sim/sim.h"
+#include "../sim/types.h"
+}
+
+struct game* G;
+
 using namespace std;
 
 void Opp() {
@@ -12,11 +19,16 @@ void Opp() {
     string card_name;
     int slot_number;
     cin >> card_name >> slot_number;
+    struct value* v = find_card_value(card_name.c_str());
+    play_left(v, slot_number, G);
   } else {
     int slot_number;
     string card_name;
     cin >> slot_number >> card_name;
+    struct value* v = find_card_value(card_name.c_str());
+    play_right(slot_number, v, G);
   }
+  switch_turn(G);
 }
 
 const char* card_names[] = {
@@ -32,25 +44,30 @@ enum Card {
 #define arraysize(a) (sizeof(a)/sizeof((a)[0]))
 
 template<typename T, typename U>
-void __(T lhs, U rhs);
+void __(T lhs, U rhs, struct game* g);
 
 template<>
-void __(Card c, int i) {
+void __(Card c, int i, struct game* g) {
   cout << 1 << endl;
   cout << card_names[static_cast<int>(c)] << endl;
   cout << i << endl;
+  struct value* v = find_card_value(card_names[c]);
+  play_left(v, i, g);
 }
 
 template<>
-void __(int i, Card c) {
+void __(int i, Card c, struct game* g) {
   cout << 2 << endl;
   cout << i << endl;
   cout << card_names[static_cast<int>(c)] << endl;
+  struct value* v = find_card_value(card_names[c]);
+  play_right(i, v, g);
 }
 
 template<typename T, typename U>
 void _(T lhs, U rhs) {
-  __(lhs, rhs);
+  __(lhs, rhs, G);
+  switch_turn(G);
   Opp();
 }
 
@@ -182,6 +199,7 @@ void Work() {
 
 int main(int argc, char** argv) {
   assert(argc == 2);
+  G = create_game();
   if (argv[1] == string("1")) {
     Opp();
   }
