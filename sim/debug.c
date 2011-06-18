@@ -36,17 +36,15 @@ void print_slot(int user_index, int slot_index, const struct slot *slot) {
 
 void print_user(int user_index, const struct user *user) {
 	int i;
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 256; i++)
 		print_slot(user_index, i, &user->slots[i]);
-	}
 }
 
 void print_game(const struct game *game) {
 	int i;
 	fprintf(stderr, "=== PRIN GAME BEGIN ===\n");
 	fprintf(stderr, "turn: %d\n", game->turn);
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < 2; i++)
 		print_user(i, &game->users[i]);
-	}
 	fprintf(stderr, "=== PRINT GAME END ===\n");
 }

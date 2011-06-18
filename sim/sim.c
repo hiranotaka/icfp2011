@@ -14,8 +14,7 @@ static struct value *create_value(void)
 
 static inline struct value *ref_value(struct value *field)
 {
-	if (field)
-		field->refcount++;
+	field->refcount++;
 	return field;
 }
 
@@ -23,7 +22,7 @@ static void destroy_value(struct value *field);
 
 static inline void unref_value(struct value *field)
 {
-	if (field && --field->refcount <= 0)
+	if (--field->refcount <= 0)
 		destroy_value(field);
 }
 
@@ -31,7 +30,7 @@ static void destroy_value(struct value *field)
 {
 	if (field->type == TYPE_FUNCTION) {
 		int i;
-		for (i = 0; i < numberof(field->u.function.args); i++)
+		for (i = 0; i < field->u.function.nr_args; i++)
 			unref_value(field->u.function.args[i]);
 	}
 	free(field);
@@ -54,7 +53,7 @@ static int do_apply(struct value *f, struct value *x, struct value **retp,
 	g->type = TYPE_FUNCTION;
 	g->u.function.ops = f->u.function.ops;
 	g->u.function.nr_args = f->u.function.nr_args;
-	for (i = 0; i < numberof(f->u.function.args); i++)
+	for (i = 0; i < f->u.function.nr_args; i++)
 		g->u.function.args[i] = ref_value(f->u.function.args[i]);
 	g->u.function.args[g->u.function.nr_args++] = ref_value(x);
 	if (g->u.function.nr_args < g->u.function.ops->nr_required_args) {
@@ -69,7 +68,8 @@ static int do_apply(struct value *f, struct value *x, struct value **retp,
 
 static int is_slot_index(struct value *i)
 {
-	return i->type == TYPE_INTEGER && i->u.integer >= 0 && i->u.integer < 256;
+	return i->type == TYPE_INTEGER && i->u.integer >= 0 &&
+		i->u.integer < 256;
 }
 
 struct value zero_value = {
@@ -98,13 +98,15 @@ struct value zero_value = {
 		},							\
 	}
 
-static int I(struct function *f, struct value **retp, struct game *game) {
+static int I(struct function *f, struct value **retp, struct game *game)
+{
 	*retp = ref_value(f->args[0]);
 	return 1;
 }
 DEFINE_FUNCTION(I, 1);
 
-static int succ(struct function *f, struct value **retp, struct game *game) {
+static int succ(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *n;
 	struct value *ret;
 
@@ -121,7 +123,8 @@ static int succ(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(succ, 1);
 
-static int dbl(struct function *f, struct value **retp, struct game *game) {
+static int dbl(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *n;
 	struct value *ret;
 
@@ -138,7 +141,8 @@ static int dbl(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(dbl, 1);
 
-static int get(struct function *f, struct value **retp, struct game *game) {
+static int get(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i;
 	struct slot *slot;
 
@@ -155,13 +159,15 @@ static int get(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(get, 1);
 
-static int put(struct function *f, struct value **retp, struct game *game) {
+static int put(struct function *f, struct value **retp, struct game *game)
+{
 	*retp = ref_value(&I_value);
 	return 1;
 }
 DEFINE_FUNCTION(put, 1);
 
-static int S(struct function *f, struct value **retp, struct game *game) {
+static int S(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *h, *y;
 	int ret = 0;
 
@@ -184,13 +190,15 @@ static int S(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(S, 3);
 
-static int K(struct function *f, struct value **retp, struct game *game) {
+static int K(struct function *f, struct value **retp, struct game *game)
+{
 	*retp = ref_value(f->args[0]);
 	return 1;
 }
 DEFINE_FUNCTION(K, 2);
 
-static int inc(struct function *f, struct value **retp, struct game *game) {
+static int inc(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i;
 	struct slot *slot;
 
@@ -212,7 +220,8 @@ static int inc(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(inc, 1);
 
-static int dec(struct function *f, struct value **retp, struct game *game) {
+static int dec(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i;
 	struct slot *slot;
 
@@ -234,7 +243,8 @@ static int dec(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(dec, 1);
 
-static int attack(struct function *f, struct value **retp, struct game *game) {
+static int attack(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
@@ -270,7 +280,8 @@ static int attack(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(attack, 3);
 
-static int help(struct function *f, struct value **retp, struct game *game) {
+static int help(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
@@ -319,7 +330,8 @@ static int copy(struct function *f, struct value **retp, struct game *game)
 }
 DEFINE_FUNCTION(copy, 1);
 
-static int revive(struct function *f, struct value **retp, struct game *game) {
+static int revive(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i;
 	struct slot *slot;
 
@@ -336,7 +348,8 @@ static int revive(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(revive, 1);
 
-static int zombie(struct function *f, struct value **retp, struct game *game) {
+static int zombie(struct function *f, struct value **retp, struct game *game)
+{
 	struct value *i, *x;
 	struct slot *slot;
 
@@ -370,7 +383,8 @@ static const struct card cards[] = {
 	CARD(copy), CARD(revive), CARD(zombie),
 };
 
-struct value *find_card_value(const char *name) {
+struct value *find_card_value(const char *name)
+{
 	int i;
 	for (i = 0; i < numberof(cards); i++) {
 		const struct card *card = &cards[i];
@@ -381,7 +395,8 @@ struct value *find_card_value(const char *name) {
 	return NULL;
 }
 
-const char *find_card_name(const struct value *value) {
+const char *find_card_name(const struct value *value)
+{
 	int i;
 	for (i = 0; i < numberof(cards); i++) {
 		const struct card *card = &cards[i];
@@ -393,12 +408,14 @@ const char *find_card_name(const struct value *value) {
 }
 
 static int apply(struct value *f, struct value *x, struct value **retp,
-		 struct game *game) {
+		 struct game *game)
+{
 	game->nr_applications = 0;
 	return do_apply(f, x, retp, game);
 }
 
-void play_left(struct value *card_value, int slot_index, struct game *game) {
+void play_left(struct value *card_value, int slot_index, struct game *game)
+{
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
@@ -408,7 +425,8 @@ void play_left(struct value *card_value, int slot_index, struct game *game) {
 	unref_value(field);
 }
 
-void play_right(int slot_index, struct value *card_value, struct game *game) {
+void play_right(int slot_index, struct value *card_value, struct game *game)
+{
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
@@ -418,7 +436,8 @@ void play_right(int slot_index, struct value *card_value, struct game *game) {
 	unref_value(field);
 }
 
-static int user_dead(struct user *user) {
+static int user_dead(struct user *user)
+{
 	int i;
 	for (i = 0; i < 256; i++) {
 		if (user->slots[i].vitality > 0)
@@ -427,7 +446,8 @@ static int user_dead(struct user *user) {
 	return 1;
 }
 
-static int game_dead(struct game *game) {
+static int game_dead(struct game *game)
+{
 	int i;
 	for (i = 0; i < 2; i++) {
 		if (user_dead(&game->users[i]))
@@ -436,7 +456,8 @@ static int game_dead(struct game *game) {
 	return 0;
 }
 
-static void apply_zombie(struct slot *slot, struct game *game) {
+static void apply_zombie(struct slot *slot, struct game *game)
+{
 	if (slot->vitality > 0)
 		return;
 
@@ -448,7 +469,8 @@ static void apply_zombie(struct slot *slot, struct game *game) {
 	slot->vitality = 0;
 }
 
-static void apply_zombies(struct game *game) {
+static void apply_zombies(struct game *game)
+{
 	struct user *user;
 	int i;
 
@@ -460,7 +482,8 @@ static void apply_zombies(struct game *game) {
 	game->zombie = 0;
 }
 
-int switch_turn(struct game *game) {
+int switch_turn(struct game *game)
+{
 	if (game_dead(game))
 		return 0;
 
@@ -473,18 +496,21 @@ int switch_turn(struct game *game) {
 	return 1;
 }
 
-static void init_slot(struct slot *slot) {
+static void init_slot(struct slot *slot)
+{
 	slot->field = ref_value(&I_value);
 	slot->vitality = 10000;
 }
 
-static void init_user(struct user *user) {
+static void init_user(struct user *user)
+{
 	int i;
 	for (i = 0; i < 256; i++)
 		init_slot(&user->slots[i]);
 }
 
-struct game *create_game(void) {
+struct game *create_game(void)
+{
 	struct game *game;
 	int i;
 	game = malloc(sizeof(struct game));
@@ -495,18 +521,21 @@ struct game *create_game(void) {
 	return game;
 }
 
-static void copy_slot(struct slot *old_slot, struct slot *new_slot) {
+static void copy_slot(struct slot *old_slot, struct slot *new_slot)
+{
 	new_slot->field = ref_value(old_slot->field);
 	new_slot->vitality = old_slot->vitality;
 }
 
-static void copy_user(struct user *old_user, struct user *new_user) {
+static void copy_user(struct user *old_user, struct user *new_user)
+{
 	int i;
 	for (i = 0; i < 256; i++)
 		copy_slot(&old_user->slots[i], &new_user->slots[i]);
 }
 
-struct game *dup_game(struct game* old_game) {
+struct game *dup_game(struct game* old_game)
+{
 	struct game *new_game;
 	int i;
 	new_game = malloc(sizeof(struct game));
@@ -518,17 +547,20 @@ struct game *dup_game(struct game* old_game) {
 	return new_game;
 }
 
-static void clean_slot(struct slot *slot) {
+static void clean_slot(struct slot *slot)
+{
 	unref_value(slot->field);
 }
 
-static void clean_user(struct user *user) {
+static void clean_user(struct user *user)
+{
 	int i;
 	for (i = 0; i < 256; i++)
 		clean_slot(&user->slots[i]);
 }
 
-void destroy_game(struct game *game) {
+void destroy_game(struct game *game)
+{
 	int i;
 	for (i = 0; i < 2; i++)
 		clean_user(&game->users[i]);
