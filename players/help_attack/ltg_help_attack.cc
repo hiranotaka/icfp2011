@@ -1,66 +1,17 @@
+#include "global.h"
+#include "sim_util.h"
+
 #include <cassert>
 #include <iostream>
 #include <string>
 #include <queue>
 
-extern "C" {
-#include "../../sim/sim.h"
-#include "../../sim/types.h"
-#include "../../sim/debug.h"
-}
-
-struct game* G;
-bool DEBUG = false;
-int MY_PLAYER = 0;
-
 using namespace std;
 
-int GetVitality(int i, int player, struct game* g) {
-  return g->users[player].slots[i].vitality;
-}
-
-int GetOppVitality(int i, struct game* g) {
-  return GetVitality(i, MY_PLAYER == 0 ? 1 : 0, g);
-}
-
-int GetMyVitality(int i, struct game* g) {
-  return GetVitality(i, MY_PLAYER, g);
-}
-
-const int INVALID_VALUE = -100000;
-
-int GetValue(int i, int player, struct game* g) {
-  if (GetVitality(i, player, g) <= 0)
-    return INVALID_VALUE;
-  struct value* v = g->users[player].slots[i].field;
-  if (v->type == TYPE_INTEGER)
-    return v->u.integer;
-  else
-    return INVALID_VALUE;
-}
-
-int GetMyValue(int i, struct game* g) {
-  return GetValue(i, MY_PLAYER, g);
-}
-
-int GetOppValue(int i, struct game* g) {
-  return GetValue(i, MY_PLAYER ? 0 : 1, g);
-}
-
-struct function* GetFunc(int i, int player, struct game* g) {
-  struct value* v = g->users[player].slots[i].field;
-  if (v->type == TYPE_FUNCTION)
-    return &(v->u.function);
-  return NULL;
-}
-
-struct function* GetMyFunc(int i, struct game* g) {
-  return GetFunc(i, MY_PLAYER, g);
-}
-
-struct function* GetOppFunc(int i, struct game* g) {
-  return GetFunc(i, MY_PLAYER ? 0 : 1, g);
-}
+struct game* G;
+bool DEBUG;
+int MY_PLAYER;
+int OPP_PLAYER;
 
 void Opp() {
   int application_order;
@@ -246,12 +197,10 @@ int GetScore(int i, struct game* g) {
 
 // Find alive target in [start, end)
 int FindTarget(int start, int end) {
-  /*if (end == 256) {
-    for (int i = 255; i >= 0; --i) {
-      if (GetOppVitality(i, G) > 0)
-	return i;
-    }
-    }*/
+  for (int i = 255; i >= 0; --i) {
+    if (GetOppVitality(i, G) > 0)
+      return i;
+  }
   priority_queue< pair<int,int> > queue;
   for (int i = start; i < end; ++i) {
     if (GetOppVitality(i, G) > 0) {
@@ -308,18 +257,19 @@ void DoWork() {
     }
     if (DEBUG) {
       cerr << "target: " << target
-	   << " score: " << GetScore(target, G) << endl;
-      print_slot(MY_PLAYER?0:1, target,
-		 &G->users[MY_PLAYER?0:1].slots[target]);
+	   << " score: " << GetScore(target, G)
+	   << " vitality: " << GetOppVitality(target, G) << endl;
+      print_slot(OPP_PLAYER, target,
+		 &(G->users[OPP_PLAYER].slots[target]));
     }
 
-    if (GetMyValue(2, G) != 11112)
-      return;
+    //if (GetMyValue(2, G) != 11112)
+    //  return;
     
-    if (GetOppVitality(target, G) <= 0) {
+    //if (GetOppVitality(target, G) <= 0) {
       // The target is dead.
-      continue;
-    }
+    //  continue;
+    //}
     int o = 255 - target;
  
     _(1, ZERO);  // 1: 0
@@ -330,6 +280,15 @@ void DoWork() {
     CallWithSlot(1, 0);  // 1: attack(0)(o)
     CallWithSlot(1, 2);  // 1: attack(0)(o)(11112) -> I
     _(PUT, 0);  // 0: I
+    
+
+    if (DEBUG) {
+      cerr << "a target: " << target
+	   << "a score: " << GetScore(target, G)
+	   << "a vitality: " << GetOppVitality(target, G) << endl;
+      print_slot(OPP_PLAYER, target,
+		 &(G->users[OPP_PLAYER].slots[target]));
+    }
 
     count++;
 
@@ -337,7 +296,7 @@ void DoWork() {
     if (func && GetFuncLength(func) > 5) {
       ToN(9, o);
       _(ZOMBIE, 9); // zombie(o)
-      _(9, I);
+      _(9, I); // zombie(o, I)
       if (DEBUG) {
 	cerr << "zombie(" << target << ", I)" << endl;
       }
@@ -345,6 +304,8 @@ void DoWork() {
 
     TryRevive();
   }
+
+  return;
 
   count = 0;
   // attack(1)(o)(11112)
@@ -470,10 +431,13 @@ void Work() {
 
 int main(int argc, char** argv) {
   assert(argc == 2);
+  DEBUG = false;
   G = create_game();
   MY_PLAYER = 0;
+  OPP_PLAYER = 1;
   if (argv[1] == string("1")) {
     MY_PLAYER = 1;
+    OPP_PLAYER = 0;
     Opp();
   }
   Work();

@@ -1,4 +1,4 @@
-run: ../../sim/sim.o ../../sim/debug.o ltg_help_attack.o
+run: ../../sim/sim.o ../../sim/debug.o ltg_help_attack.o sim_util.o
 	g++ -O3 -Wall -g -o $@ $^
 
 sim.o:
@@ -9,8 +9,6 @@ debug.o:
 
 .cc.o:
 	g++ -O3 -Wall -g -c $<
-
-run.o: ltg_help_attack.cc
 
 clean:
 	rm -f run *.o
