@@ -49,7 +49,7 @@ void __(T lhs, U rhs, struct game* g);
 template<>
 void __(Card c, int i, struct game* g) {
   cout << 1 << endl;
-  cout << card_names[static_cast<int>(c)] << endl;
+  cout << card_names[c] << endl;
   cout << i << endl;
   struct value* v = find_card_value(card_names[c]);
   play_left(v, i, g);
@@ -59,7 +59,7 @@ template<>
 void __(int i, Card c, struct game* g) {
   cout << 2 << endl;
   cout << i << endl;
-  cout << card_names[static_cast<int>(c)] << endl;
+  cout << card_names[c] << endl;
   struct value* v = find_card_value(card_names[c]);
   play_right(i, v, g);
 }
