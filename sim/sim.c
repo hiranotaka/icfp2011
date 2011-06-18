@@ -220,8 +220,7 @@ static int dec(struct function *f, struct value **retp, struct game *game) {
 }
 DEFINE_FUNCTION(dec, 1);
 
-static int attack(struct function *f, struct value **retp,
-		      struct game *game) {
+static int attack(struct function *f, struct value **retp, struct game *game) {
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
@@ -250,8 +249,7 @@ static int attack(struct function *f, struct value **retp,
 }
 DEFINE_FUNCTION(attack, 3);
 
-static int help(struct function *f, struct value **retp,
-		    struct game *game) {
+static int help(struct function *f, struct value **retp, struct game *game) {
 	struct value *i, *j, *n;
 	struct slot *slot0, *slot1;
 
@@ -293,8 +291,7 @@ static int copy(struct function *f, struct value **retp, struct game *game)
 }
 DEFINE_FUNCTION(copy, 1);
 
-static int revive(struct function *f, struct value **retp,
-		  struct game *game) {
+static int revive(struct function *f, struct value **retp, struct game *game) {
 	struct value *i;
 	struct slot *slot;
 
@@ -311,8 +308,7 @@ static int revive(struct function *f, struct value **retp,
 }
 DEFINE_FUNCTION(revive, 1);
 
-static int zombie(struct function *f, struct value **retp,
-		  struct game *game) {
+static int zombie(struct function *f, struct value **retp, struct game *game) {
 	struct value *i, *x;
 	struct slot *slot;
 
