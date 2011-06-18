@@ -1,4 +1,5 @@
 // Usage: ./ltg.<architecture> match ./ltg_help_attack ./ltg_do_nothing
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -9,8 +10,14 @@ extern "C" {
 }
 
 struct game* G;
+int MY_PLAYER;
 
 using namespace std;
+
+// Use MY_PLAYER or MY_PLAYER^1 as a second argument.
+int GetVitality(int i, int player, struct game* g) {
+  return g->users[player].slots[i].vitality;
+}
 
 void Opp() {
   int application_order;
@@ -66,7 +73,6 @@ void __(int i, Card c, struct game* g) {
 template<typename T, typename U>
 void _(T lhs, U rhs) {
   __(lhs, rhs, G);
-  switch_turn(G);
   Opp();
 }
 
@@ -96,111 +102,116 @@ void Wrap(int i, Card c) {
 
 void WrapSuccN(int i, int n) {
   if (n == 0) return;
-  WrapSuccN(i, n / 2);
-  Wrap(i, DBL);
   if (n & 1) Wrap(i, SUCC);
+  if (n / 2) Wrap(i, DBL), WrapSuccN(i, n / 2);
 }
 
 // Calls a function at slot i with a value at slot j.
 void CallWithSlot(int i, int j) {
   // i: F
   Wrap(i, GET);  // i: S(K(F))(get)
-  //WrapSuccN(i, j);
-  for (int k = 0; k < j; ++k) {
-    Wrap(i, SUCC);  // i: S(K(S(K(F))(get)))(succ)
-  }
+  WrapSuccN(i, j);
   _(i, ZERO);  // i: F(get(succ(succ(...(zero)...))))
 }
 
 // Calls a function at slot i with a value j
 void CallWithValue(int i, int j) {
   // i: F
-  for (int k = 0; k < j; ++k) {
-    Wrap(i, SUCC);  // i: S(K(F))(succ)
-  }
+  WrapSuccN(i, j);
   _(i, ZERO);  // i: F(succ(succ(...(zero)...)))
 }
 
 void DoWork() {
-  // Assumes 0: I
-  // _(PUT, 0);
-  IToN(0, 3);  // 0: 3
-  _(GET, 0);  // 0: 8192
-
-  // Repeat help(0)(1)(8192) and help(1)(0)(8192) to increase life.
-  for (int i = 0; i < 68; ++i) {
-    // help(0)(1)(8192)
-    // Assumes 0: 8192
-    IToN(1, 4);  // 1: 4
-    _(GET, 1);  // 1: help(0)(1)
-    CallWithSlot(1, 0);  // help(0)(1)(8192) -> I
-
-    // help(1)(0)(8192)
-    // Assumes 0: 8192
-    IToN(1, 5);  // 1: 5
-    _(GET, 1);  // 1: help(1)(0)
-    CallWithSlot(1, 0);  // help(1)(0)(8192) -> I
+  int mv = -1;  // Maximum vitality.
+  int mvi = -1;  // Slot number of maximum vitality.
+  for (int i = 0; i < 256; ++i) {
+    int v = GetVitality(i, MY_PLAYER, G);
+    if (mv < v) {
+      mv = v;
+      mvi = i;
+    }
   }
 
-  _(PUT, 0);  // 0: I
+  assert(mv > 0 && mvi >= 0);
 
-  static int o = 0;
+  while (mv < 65535) {
+    _(PUT, mvi);  // mvi: I
+    IToN(mvi, mvi);  // mvi: mvi
+    _(HELP, mvi);  // mvi: help(mvi)
 
-  // Using life of slot 0 and 1 kill opponent's slots repeatedly.
+    int sv = -1;  // Second largest vitality.
+    int svi = -1;  // Slot number of second largest vitality.
+    for (int i = 0; i < 256; ++i) {
+      if (i == mvi) continue;
+      int v = GetVitality(i, MY_PLAYER, G);
+      if (sv < v) {
+        sv = v;
+        svi = i;
+      }
+    }
 
-  // attack(0)(o)(11112)
-  for (int i = 0; i < 5; ++i) {
-    _(1, ZERO);  // 1: 0
-    _(ATTACK, 1);  // 1: attack(0)
-    _(0, ZERO);  // 0: 0
-    ToN(0, o++);  // 0: o
-    CallWithSlot(1, 0);  // 1: attack(0)(o)
-    CallWithSlot(1, 2);  // 1: attack(0)(o)(11112) -> I
-    _(PUT, 0);  // 0: I
+    assert(sv > 0 && svi >= 0);
+
+    CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
+    int move = min(mv - 100, 65535 - sv);  // We leave at least 100 life.
+    CallWithValue(mvi, move);  // mvi: I
+    mv = GetVitality(svi, MY_PLAYER, G);
+    mvi = svi;
   }
 
-  // attack(1)(o)(11112)
-  for (int i = 0; i < 5; ++i) {
-    _(1, ZERO);  // 1: 0
-    _(SUCC, 1);  // 1: 1
-    _(ATTACK, 1);  // 1: attack(1)
-    _(0, ZERO);  // 0: 0
-    ToN(0, o++);  // 0: o
-    CallWithSlot(1, 0);  // 1: attack(1)(o)
-    CallWithSlot(1, 2);  // 1: attack(1)(o)(11112) -> I
-    _(PUT, 0);  // 0: I
+  while (mv > 10000) {
+    int av = -1;  // Maximum vitality in opponent.
+    int avi = -1;  // Number of slot which have maximum vitality in opponent.
+    for (int i = 0; i < 256; ++i) {
+      int v = GetVitality(i, 1 - MY_PLAYER, G);
+      if (v > 0 && av < v) {
+        av = v;
+        avi = i;
+      }
+    }
+
+    assert(av > 0 && avi >= 0);
+
+    // av could be increased so we add 100.
+    int attack = min(av * 10 / 9 + 100, mv - 10000);
+
+    // attack(mvi)(255 - avi)(av)
+    _(PUT, mvi);  // mvi: I
+    IToN(mvi, mvi);  // mvi: mvi
+    _(ATTACK, mvi);  // mvi: attack(mvi)
+    CallWithValue(mvi, 255 - avi);  // mvi: attack(mvi)(255 - avi)
+
+    // We want to simply do CallWithValue(mvi, attack) here, but this takes time
+    // and before we become to be able to attack, opponent may move his life to
+    // other slot using help. Thus instead of that we take fast approach.
+    //CallWithValue(mvi, attack);  // mvi: attack(mvi)(255 - avi)(attack)
+
+    // Fast approach.
+    for (int i = 0; i < 256; ++i) {
+      if (i == mvi) continue;
+      if (GetVitality(i, MY_PLAYER, G) == 0) continue;
+      _(PUT, i);
+      IToN(i, attack);
+      CallWithSlot(mvi, i);
+      break;
+    }
+
+    mv = GetVitality(mv, MY_PLAYER, G);
   }
 }
 
 void Work() {
-  // Precompute functions/values.
-
-  // 2: 11112
-  IToN(2, 11112);  // 2: 11112
-
-  // 3: 8192
-  IToN(3, 8192);  // 3: 8192
-
-  // 4: help(0)(1)
-  _(4, HELP);  // 4: help
-  CallWithValue(4, 0);  // 4: help(0)
-  CallWithValue(4, 1);  // 4: help(0)(1)
-
-  // 5: help(1)(0)
-  _(5, HELP);  // 5: help
-  CallWithValue(5, 1);  // 5: help(1)
-  CallWithValue(5, 0);  // 5: help(1)(0)
-
   while (1) {
     DoWork();
   }
 }
 
-
 int main(int argc, char** argv) {
   assert(argc == 2);
   G = create_game();
+  MY_PLAYER = 0;
   if (argv[1] == string("1")) {
+    MY_PLAYER = 1;
     Opp();
   }
   Work();
