@@ -18,6 +18,7 @@ extern struct value attack_value;
 extern struct value help_value;
 extern struct value copy_value;
 extern struct value revive_value;
+extern struct value zombie_value;
 struct value *find_card_value(const char *name);
 const char *find_card_name(const struct value *value);  // Not tested.
 
