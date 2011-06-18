@@ -197,6 +197,8 @@ void Work() {
   }
 }
 
+
+
 int main(int argc, char** argv) {
   assert(argc == 2);
   G = create_game();
