@@ -252,7 +252,7 @@ void DoWork() {
     }
   }
 
-  assert(mv > 0 && mvi >= 0);
+  //assert(mv > 0 && mvi >= 0);
 
   while (mv < 65535) {
     _(PUT, mvi);  // mvi: I
@@ -270,7 +270,7 @@ void DoWork() {
       }
     }
 
-    assert(sv > 0 && svi >= 0);
+    //assert(sv > 0 && svi >= 0);
 
     CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
     int move = min(mv - 100, 65535 - sv);  // We leave at least 100 life.
@@ -290,7 +290,7 @@ void DoWork() {
       }
     }
 
-    assert(av > 0 && avi >= 0);
+    //assert(av > 0 && avi >= 0);
 
     // av could be increased so we add 100.
     int attack = min(av * 10 / 9 + 100, mv - 10000);
