@@ -6,7 +6,8 @@
 
 #define numberof(x) (sizeof(x) / sizeof(*(x)))
 
-static struct value *read_card_value(void) {
+static struct value *read_card_value(void)
+{
 	char line[16];
 	if (!fgets(line, sizeof(line), stdin))
 		return NULL;
@@ -15,7 +16,8 @@ static struct value *read_card_value(void) {
 	return find_card_value(line);
 }
 
-static int read_slot_index(void) {
+static int read_slot_index(void)
+{
 	char line[16];
 	int slot_index;
 
@@ -29,7 +31,8 @@ static int read_slot_index(void) {
 	return slot_index;
 }
 
-static int apply_interactive_cs(struct game *game) {
+static int apply_interactive_cs(struct game *game)
+{
 	int slot_index;
 	struct value *card_value;
 
@@ -47,7 +50,8 @@ static int apply_interactive_cs(struct game *game) {
 	return switch_turn(game);
 }
 
-static int apply_interactive_sc(struct game *game) {
+static int apply_interactive_sc(struct game *game)
+{
 	int slot_index;
 	struct value *card_value;
 
@@ -65,7 +69,8 @@ static int apply_interactive_sc(struct game *game) {
 	return switch_turn(game);
 }
 
-static int apply_interactive(struct game *game) {
+static int apply_interactive(struct game *game)
+{
 	char line[16];
 	int dir;
 
@@ -85,7 +90,8 @@ static int apply_interactive(struct game *game) {
 }
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 	struct game *game = create_game();
 	while (apply_interactive(game));
 	destroy_game(game);
