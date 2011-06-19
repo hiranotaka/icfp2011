@@ -1,6 +1,8 @@
-run: ../../sim/sim.o ../../sim/debug.o main.o sim_util.o
+run: ../../sim/sim.o ../../sim/debug.o main.o sim_util.o util.o
 	g++ -O3 -Wall -g -o $@ $^
 
+revive: ../../sim/sim.o ../../sim/debug.o revive_main.o sim_util.o util.o
+	g++ -O3 -Wall -g -o $@ $^
 sim.o:
 	make ../../sim
 

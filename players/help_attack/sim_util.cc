@@ -1,6 +1,10 @@
 #include "global.h"
 #include "sim_util.h"
 
+extern "C" {
+#include "../../sim/debug.h"
+}
+
 int GetVitality(int i, int player, struct game* g) {
   return g->users[player].slots[i].vitality;
 }
@@ -44,4 +48,8 @@ struct function* GetMyFunc(int i, struct game* g) {
 
 struct function* GetOppFunc(int i, struct game* g) {
   return GetFunc(i, MY_PLAYER ? 0 : 1, g);
+}
+
+void PrintSlot(int player, int i) {
+  print_slot(player, i, &G->users[player].slots[i]);
 }

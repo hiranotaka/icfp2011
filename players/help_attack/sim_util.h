@@ -1,6 +1,8 @@
 #ifndef SIM_UTIL_H
 #define SIM_UTIL_H
 
+#include <string>
+
 extern "C" {
 #include "../../sim/sim.h"
 #include "../../sim/types.h"
@@ -17,5 +19,7 @@ int GetOppValue(int i, struct game* g);
 
 struct function* GetMyFunc(int i, struct game* g);
 struct function* GetOppFunc(int i, struct game* g);
+
+void PrintSlot(int player, int i);
 
 #endif
