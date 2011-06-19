@@ -11,6 +11,7 @@ using namespace std;
 
 struct game* G;
 bool DEBUG;
+int SLEEP_TIME;
 int MY_PLAYER;
 int OPP_PLAYER;
 
@@ -68,7 +69,7 @@ int GetFuncLength(const struct function* func) {
 int GetScore(int i, struct game* g) {
   struct function* func = GetOppFunc(i, g);
   if (func && string("I") != func->ops->name) {
-    return 20000 + i + GetFuncLength(func) * 100;
+    return 20000 + i + GetFuncLength(func) * 1000;
   } else {
     int value = GetOppValue(i, g);
     if (value != INVALID_VALUE) {
@@ -79,6 +80,23 @@ int GetScore(int i, struct game* g) {
   return i;
 }
 
+
+// Find alive target in [start, end)
+int FindTarget(int start, int end) {
+  priority_queue< pair<int,int> > queue;
+  for (int i = start; i < end; ++i) {
+    if (GetOppVitality(i, G) > 0) {
+      int score = GetScore(i, G);
+      if (score > 0)
+	queue.push(make_pair(score, i));
+    }
+  }
+  if (queue.size() > 0) {
+    return queue.top().second;
+  } else {
+    return -1;
+  }
+}
 
 void Zombie(int target) {
   int tmp = 0;
@@ -97,6 +115,384 @@ void Zombie(int target) {
     cerr << "zomvie!!" << endl;
 }
 
+void ZombiePowder(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue< pair<int,int> > queue;
+  for (int i = 0; i < 256; ++i) {
+    int v = GetMyVitality(i, G);
+    if (v > 100)
+      queue.push(make_pair(255-i, i));
+  }
+  if (queue.size() < 2)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+  tmp1 = 0;
+
+  MaybePut(tmp1);
+  IToN(tmp1, target); // tmp1: target
+  _(ATTACK, tmp1); // tmp1: attack(target)
+  _(tmp1, ZERO); // tmp1: attack(target, 0)
+  _(K, tmp1); // tmp1: K(attack(target, 0))
+  _(S, tmp1); // tmp1: S(K(attack(target, 0)))
+
+  int tmp2 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp2);
+  int power = GetOppVitality(target, G);
+  power = 1;
+  IToN(tmp2, power); // tmp2: power
+  _(K, tmp2); // tmp2: K(power)
+
+  // tmp1: S(attack(target, 0), K(power))
+  CallWithSlot(tmp1, tmp2);
+
+  MaybePut(tmp2); // tmp2: I
+  IToN(tmp2, 255 - death);  // tmp2: death
+  _(ZOMBIE, tmp2); // tmp2: zombie(death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp2, tmp1);
+
+  cerr << "zombie powder attack("
+       << target << ", 0, " << power << ")" << endl;
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
+void ZombiePowder2(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 10)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+
+  MaybePut(tmp1);
+  IToN(tmp1, target); // tmp1: target
+  _(ATTACK, tmp1); // tmp1: attack(target)
+  _(tmp1, ZERO); // tmp1: attack(target, 0)
+  _(K, tmp1); // tmp1: K(attack(target, 0))
+  _(S, tmp1); // tmp1: S(K(attack(target, 0)))
+
+
+  int tmp2 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp2);
+  int power = min(GetOppVitality(target, G), 1);
+
+  IToN(tmp2, power); // tmp2: power
+  _(K, tmp2); // tmp2: K(power)
+
+  // tmp1: S(K(attack(target, 0)), K(power))
+  CallWithSlot(tmp1, tmp2);
+
+  
+  //MaybePut(tmp2);
+  //_(K, tmp2); // tmp2: K(I)
+  //_(K, tmp2); // tmp2: K(K(I))
+  //_(S, tmp2); // tmp2: S(K(K(I)))
+  // tmp2: S(K(K(I)) S(K(attack(target, 0)), K(power)))
+  //CallWithSlot(tmp2, tmp1); 
+
+  MaybePut(tmp2); // tmp2: I
+  _(tmp2, GET); // tmp2: get
+  _(K, tmp2);  // tmp2: K(get)
+  _(S, tmp2); // tmp2: S(K(get))
+
+  int tmp3 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp3); // tmp3: I
+  IToN(tmp3, death); // tmp3: death
+  _(K, tmp3); // tmp3: K(death)
+  
+  CallWithSlot(tmp2, tmp3); // tmp2: S(K(get) K(death))
+
+  _(S, tmp2); // tmp2: S(S(K(get) K(target)))
+
+  // tmp2: S(K(get) K(death)) S(K(attack(target, 0)), K(power))
+  CallWithSlot(tmp2, tmp1);
+
+  MaybePut(tmp1); // tmp2: I
+  IToN(tmp1, 255 - death);  // tmp2: death
+  _(ZOMBIE, tmp1); // tmp1: zombie(255 - death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp1, tmp2);
+
+  cerr << "zombie powder attack("
+       << target << ", 0, " << power << ")" << endl;
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
+void ZombiePowder3(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 10)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+
+  MaybePut(tmp1);
+  _(tmp1, INC); // tmp1: inc
+  _(K, tmp1); // tmp1: K(inc)
+  _(S, tmp1); // tmp1: S(K(inc))
+
+  int tmp2 = queue.top().second;
+  queue.pop();
+  IToN(tmp2, target); // tmp2: target
+  _(K, tmp2); // tmp2: K(target)
+
+  // tmp1: S(K(inc), K(target))
+  CallWithSlot(tmp1, tmp2);
+
+  MaybePut(tmp2); // tmp2: I
+  _(tmp2, GET); // tmp2: get
+  _(K, tmp2);  // tmp2: K(get)
+  _(S, tmp2); // tmp2: S(K(get))
+
+  int tmp3 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp3); // tmp3: I
+  IToN(tmp3, death); // tmp3: death
+  _(K, tmp3); // tmp3: K(death)
+  
+  CallWithSlot(tmp2, tmp3); // tmp2: S(K(get) K(death))
+
+  _(S, tmp2); // tmp2: S(S(K(get) K(target)))
+
+  CallWithSlot(tmp2, tmp1);
+
+  MaybePut(tmp1); // tmp1: I
+  IToN(tmp1, 255 - death);  // tmp2: death
+  _(ZOMBIE, tmp1); // tmp1: zombie(255 - death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp1, tmp2);
+
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
+void ZombiePowder4(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 10)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+
+  MaybePut(tmp1);
+  _(tmp1, REVIVE); // tmp1: revive
+  _(S, tmp1); // tmp1: S(revive)
+  _(tmp1, GET); // tmp1: S(revive, get)
+  _(K, tmp1); // tmp1: K(S(revive, get))
+  _(S, tmp1); // tmp1: S(K(S(revive, get)))
+  
+  int tmp2 = queue.top().second;
+  queue.pop();
+  IToN(tmp2, death); // tmp2: death
+  _(K, tmp2); // tmp2: K(death)
+
+  // tmp1: S(K(S(revive, get)), K(death))
+  CallWithSlot(tmp1, tmp2);
+
+  MaybePut(tmp2); // tmp2: I
+  IToN(tmp2, 255 - death);  // tmp2: death
+  _(ZOMBIE, tmp2); // tmp2: zombie(255 - death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp2, tmp1);
+
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
+void ZombiePowder5(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 10)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+
+  MaybePut(tmp1);
+  _(tmp1, REVIVE); // tmp1: revive
+  _(S, tmp1); // tmp1: S(revive)
+  _(tmp1, GET); // tmp1: S(revive, get)
+  _(K, tmp1); // tmp1: K(S(revive, get))
+  _(S, tmp1); // tmp1: S(K(S(revive, get)))
+  
+  int tmp2 = queue.top().second;
+  queue.pop();
+  IToN(tmp2, death); // tmp2: death
+  _(K, tmp2); // tmp2: K(death)
+
+  // tmp1: S(K(S(revive, get)), K(death))
+  CallWithSlot(tmp1, tmp2);
+
+  _(S, tmp1); // S(S(K(S(revive, get)), K(death)))
+
+  MaybePut(tmp2);
+  IToN(tmp2, target); // tmp2: target
+  _(ATTACK, tmp2); // tmp2: attack(target)
+  _(tmp2, ZERO); // tmp2: attack(target, 0)
+  _(K, tmp2); // tmp2: K(attack(target, 0))
+  _(S, tmp2); // tmp2: S(K(attack(target, 0)))
+  
+  int tmp3 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp3);
+  IToN(tmp3, 1); // tmp3: 1
+  _(K, tmp3); // tmp3: K(1)
+  
+  CallWithSlot(tmp2, tmp3);
+
+  CallWithSlot(tmp1, tmp2);
+
+  MaybePut(tmp3); // tmp3: I
+  IToN(tmp3, 255 - death);  // tmp3: death
+  _(ZOMBIE, tmp3); // tmp3: zombie(255 - death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp3, tmp1);
+
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
+void ZombiePowder6(int death) {
+  int target = FindTarget(0, 256);
+  if (target < 0)
+    return;
+  
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 10)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+
+  MaybePut(tmp1);
+  _(tmp1, COPY); // tmp1: copy
+  _(K, tmp1); // tmp1: K(copy)
+  _(S, tmp1); // tmp1: S(K(copy))
+  
+  int tmp2 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp2);
+  IToN(tmp2, tmp1); // tmp2: tmp1
+  _(K, tmp2); // tmp2: K(tmp1)
+
+  // tmp1: S(K(copy), K(tmp1))
+  CallWithSlot(tmp1, tmp2);
+
+  _(S, tmp1);
+
+  MaybePut(tmp2);
+  IToN(tmp2, target); // tmp2: target
+  _(ATTACK, tmp2); // tmp2: attack(target)
+  _(tmp2, ZERO); // tmp2: attack(target, 0)
+  _(K, tmp2); // tmp2: K(attack(target, 0))
+  _(S, tmp2); // tmp2: S(K(attack(target, 0)))
+  
+  int tmp3 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp3);
+  IToN(tmp3, 1); // tmp3: 1
+  _(K, tmp3); // tmp3: K(1)
+  
+  CallWithSlot(tmp2, tmp3);
+
+  CallWithSlot(tmp1, tmp2);
+
+  MaybePut(tmp3); // tmp3: I
+  IToN(tmp3, 255 - death);  // tmp3: death
+  _(ZOMBIE, tmp3); // tmp3: zombie(255 - death)
+
+  cerr << "before zombie" << endl;
+
+  sleep(5);
+ 
+  // tmp2: zombie(death, S(attack(target, 0), K(power))) 
+  CallWithSlot(tmp3, tmp1);
+
+  cerr << "after zombie" << endl;
+
+  SLEEP_TIME = 100;
+}
+
 void MaybeZombie(int target) {
   if (GetOppVitality(target, G) == 0) {
     if (DEBUG) {
@@ -106,28 +502,8 @@ void MaybeZombie(int target) {
     struct function* func = GetOppFunc(target, G);
     if (func && GetFuncLength(func) > 5) {
       Zombie(target);
+      //ZombiePowder6(target);
     }
-  }
-}
-
-// Find alive target in [start, end)
-int FindTarget(int start, int end) {
-  for (int i = 256; i >= 0; --i) {
-    if (GetOppVitality(i, G) > 0)
-      return i;
-  }
-  priority_queue< pair<int,int> > queue;
-  for (int i = start; i < end; ++i) {
-    if (GetOppVitality(i, G) > 0) {
-      int score = GetScore(i, G);
-      if (score > 0)
-	queue.push(make_pair(score, i));
-    }
-  }
-  if (queue.size() > 0) {
-    return queue.top().second;
-  } else {
-    return -1;
   }
 }
 
@@ -332,6 +708,7 @@ void Work() {
 int main(int argc, char** argv) {
   assert(argc == 2);
   DEBUG = false;
+  SLEEP_TIME = 0;
   G = create_game();
   MY_PLAYER = 0;
   OPP_PLAYER = 1;

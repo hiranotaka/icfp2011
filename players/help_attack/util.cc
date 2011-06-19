@@ -60,6 +60,9 @@ void Opp() {
     struct value* v = find_card_value(card_name.c_str());
     apply_sc(slot_number, v, G);
   }
+  if (SLEEP_TIME) {
+    sleep(SLEEP_TIME);
+  }
 }
 
 // Assumes that slot i has value zero.
@@ -116,3 +119,28 @@ void MaybePut(int i) {
   _(PUT, i);
 }
 
+
+/*
+struct Op {
+  Card card;
+  int slot;
+  int type; // 0 card -> slot, 1 slot -> card
+};
+
+
+bool Make(struct value* v) {
+}
+
+bool Compile(const char* exp, vector<Op> ops) {
+  struct value* v = Parse(exp);
+  if (v->type == TYPE_INTEGER) {
+    return false;
+  }
+  for (int i = 0; i < v->u.function.nr_args; ++i) {
+    Make(v->u.function.args[i]);
+    
+  }
+}
+  
+*/
+  
