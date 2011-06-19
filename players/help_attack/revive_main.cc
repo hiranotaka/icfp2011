@@ -37,8 +37,11 @@ bool ReviveIfDeath(int slot) {
 
 void PrintSlots() {
   for (int i = 0; i < 256; ++i) {
-    if (GetMyVitality(i, G) <= 0) {
+    int v = GetMyVitality(i, G);
+    if (v <= 0) {
       cerr << "*";
+    } else if (v == 1) {
+      cerr << ",";
     } else {
       cerr << ".";
     }
