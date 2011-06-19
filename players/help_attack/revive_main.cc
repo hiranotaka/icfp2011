@@ -82,8 +82,6 @@ void TryRevive() {
       PrintSlot(MY_PLAYER, i);
       PrintSlot(MY_PLAYER, alive);
 
-      PrintSlots();
-
       revived++;
     }
   }
@@ -95,6 +93,7 @@ void TryRevive() {
 
 void Work() {
   while (1) {
+    PrintSlots();
     TryRevive();
   }
 }

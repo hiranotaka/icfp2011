@@ -283,9 +283,47 @@ void SetUp() {
   }
 }
 
+void KillZero() {
+  int help_i = 1;
+
+  while (help_i < 250) {
+    int help_j = help_i + 1;
+
+    int v = GetOppVitality(0, G);
+    if (v <= 0)
+      return;
+
+    int opp_v = GetOppVitality(0, G);
+    int power = opp_v * 10 / 9 + 1;
+   
+    MaybePut(0);
+    IToN(0, help_i);
+    _(HELP, 0);  // 0: help(help_i)
+    CallWithValue(0, help_j); // help(help_i, help_j)
+
+    // We leave at least 100 life.
+    int my_v = GetMyVitality(help_i, G);
+    int move = min(power, my_v - 100);
+    CallWithValue(0, move);
+
+    MaybePut(0);
+    IToN(0, help_j);
+    _(ATTACK, 0); // 0: attack(help_j)
+    CallWithValue(0, 255); // 0: attack(help_j, 255)
+  
+    int mv = GetMyVitality(help_j, G);
+    power = min(mv - 100, move);
+    CallWithValue(0, power); // 0: attack(0, 255, move);
+
+    help_i += 2;
+  }
+}
+
 void Work() {
+  KillZero();
   while (1) {
     DoWork();
+    KillZero();
     TryRevive();
   }
 }
