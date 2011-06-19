@@ -1,16 +1,19 @@
 all: sim test
 
-sim: sim.o debug.o interactive.o
+sim: interactive.o libsim.a
 	gcc -O2 -Wall -g -o $@ $^
 
-test: test.o sim.o debug.o
+libsim.a: sim.o debug.o
+	ar r $@ $^
+
+test: test.o sim.a
 	gcc -O2 -Wall -g -o $@ $^
 
 .c.o:
 	gcc -O2 -Wall -g -c $<
 
 clean:
-	rm -f sim *.o
+	rm -f sim *.a *.o
 
 sim.o: types.h sim.h
 debug.o: types.h sim.h debug.h

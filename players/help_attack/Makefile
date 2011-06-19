@@ -1,18 +1,17 @@
-run: ../../sim/sim.o ../../sim/debug.o main.o sim_util.o util.o
+run: main.o sim_util.o util.o ../../sim/libsim.a
 	g++ -O3 -Wall -g -o $@ $^
 
-revive: ../../sim/sim.o ../../sim/debug.o revive_main.o sim_util.o util.o
+revive: revive_main.o sim_util.o util.o ../../sim/libsim.a
 	g++ -O3 -Wall -g -o $@ $^
-sim.o:
-	make ../../sim
 
-debug.o:
-	make ../../sim
+../../sim/libsim.a:
+	make -C ../../sim libsim.a
 
 .cc.o:
 	g++ -O3 -Wall -g -c $<
 
 clean:
+	make -C ../../sim clean
 	rm -f run *.o
 
-.PHONY: clean
+.PHONY: clean ../../sim/libsim.a
