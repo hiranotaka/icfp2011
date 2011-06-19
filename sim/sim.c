@@ -5,37 +5,6 @@
 
 #define numberof(x) (sizeof(x) / sizeof(*(x)))
 
-static struct value *create_value(void)
-{
-	struct value *field = malloc(sizeof(struct value));
-	field->refcount = 1;
-	return field;
-}
-
-static inline struct value *ref_value(struct value *field)
-{
-	field->refcount++;
-	return field;
-}
-
-static void destroy_value(struct value *field);
-
-static inline void unref_value(struct value *field)
-{
-	if (--field->refcount <= 0)
-		destroy_value(field);
-}
-
-static void destroy_value(struct value *field)
-{
-	if (field->type == TYPE_FUNCTION) {
-		int i;
-		for (i = 0; i < field->u.function.nr_args; i++)
-			unref_value(field->u.function.args[i]);
-	}
-	free(field);
-}
-
 static int do_apply(struct value *f, struct value *x, struct value **retp,
 		    struct game *game)
 {

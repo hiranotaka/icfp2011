@@ -47,4 +47,20 @@ struct game {
 	int nr_applications;
 };
 
+struct value *create_value(void);
+
+static inline struct value *ref_value(struct value *field)
+{
+	field->refcount++;
+	return field;
+}
+
+void destroy_value(struct value *field);
+
+static inline void unref_value(struct value *field)
+{
+	if (--field->refcount <= 0)
+		destroy_value(field);
+}
+
 #endif

@@ -3,10 +3,10 @@ all: sim test
 sim: interactive.o libsim.a
 	gcc -O2 -Wall -g -o $@ $^
 
-libsim.a: sim.o debug.o
+libsim.a: types.o sim.o debug.o
 	ar r $@ $^
 
-test: test.o sim.a
+test: test.o libsim.a
 	gcc -O2 -Wall -g -o $@ $^
 
 .c.o:
