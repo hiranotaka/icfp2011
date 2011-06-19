@@ -103,7 +103,7 @@ bool ReviveIfDeath(int slot) {
   }
 
   int alive = 0;
-  for (int i = 10; i < 255; ++i) {
+  for (int i = 10; i < 256; ++i) {
     if (GetMyVitality(i, G) > 1000) {
       alive = i;
       break;
@@ -147,13 +147,13 @@ void CallWithValue(int i, int j) {
 
 void TryRevive() {
   int alive = 0;
-  for (int i = 10; i < 255; ++i) {
+  for (int i = 10; i < 256; ++i) {
     if (GetMyVitality(i, G) > 1000) {
       alive = i;
       break;
     }
   }
-  for (int i = 0; i < 255; ++i) {
+  for (int i = 0; i < 256; ++i) {
     if (GetMyVitality(i, G) <= 0) {
       _(PUT, alive); // alive : I
       IToN(alive, i); // alive : i
@@ -192,7 +192,7 @@ int GetScore(int i, struct game* g) {
 
 void Zombie(int target) {
   int tmp = 0;
-  for (int i = 20; i < 255; ++i) {
+  for (int i = 20; i < 256; ++i) {
     if (GetMyVitality(i, G) > 0)
       tmp = i;
   }
@@ -222,7 +222,7 @@ void MaybeZombie(int target) {
 
 // Find alive target in [start, end)
 int FindTarget(int start, int end) {
-  for (int i = 255; i >= 0; --i) {
+  for (int i = 256; i >= 0; --i) {
     if (GetOppVitality(i, G) > 0)
       return i;
   }
@@ -252,7 +252,8 @@ void DoWork() {
     }
   }
 
-  //assert(mv > 0 && mvi >= 0);
+  if (mv <= 0 || mvi < 0)
+    return;
 
   while (mv < 65535) {
     _(PUT, mvi);  // mvi: I
@@ -270,7 +271,8 @@ void DoWork() {
       }
     }
 
-    //assert(sv > 0 && svi >= 0);
+    if (sv <= 0 || svi < 0)
+      return;
 
     CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
     int move = min(mv - 100, 65535 - sv);  // We leave at least 100 life.
@@ -290,7 +292,8 @@ void DoWork() {
       }
     }
 
-    //assert(av > 0 && avi >= 0);
+    if (av <= 0 || avi < 0)
+      return;
 
     // av could be increased so we add 100.
     int attack = min(av * 10 / 9 + 100, mv - 10000);
