@@ -445,6 +445,7 @@ static void apply_zombie(struct slot *slot, struct game *game)
 	if (apply(slot->field, &I_value, &ret, game))
 		unref_value(ret);
 
+	unref_value(&slot->field);
 	slot->field = ref_value(&I_value);
 	slot->vitality = 0;
 }
@@ -481,14 +482,15 @@ int apply_cs(struct value *card_value, int slot_index, struct game *game)
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
 	if (slot->vitality <= 0)
 		goto err;
-	field = slot->field;
 	if (!apply(card_value, field, &slot->field, game))
 		goto err;
 	unref_value(field);
 	return switch_turn(game);
  err:
+	unref_value(field);
 	slot->field = ref_value(&I_value);
 	return switch_turn(game);
 }
@@ -498,14 +500,15 @@ int apply_sc(int slot_index, struct value *card_value, struct game *game)
 	struct slot *slot;
 	struct value *field;
 	slot = &game->users[game->turn].slots[slot_index];
+	field = slot->field;
 	if (slot->vitality <= 0)
 		goto err;
-	field = slot->field;
 	if (!apply(field, card_value, &slot->field, game))
 		goto err;
 	unref_value(field);
 	return switch_turn(game);
  err:
+	unref_value(field);
 	slot->field = ref_value(&I_value);
 	return switch_turn(game);
 }
