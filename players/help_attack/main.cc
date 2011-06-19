@@ -55,6 +55,65 @@ void TryRevive() {
   }
 }
 
+void TryAllRevive() {
+  priority_queue<pair<int, int> > queue;
+  for (int i = 0; i < 256; i++) {
+    int v = GetMyVitality(i, G);
+    if (v > 100)
+      queue.push(make_pair(255 - i, i));
+  }
+  if (queue.size() < 3)
+    return;
+
+  int tmp1 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp1);
+
+
+  _(tmp1, GET);
+  _(K, tmp1);
+  _(S, tmp1); // tmp1: S(K(get)
+
+  int tmp2 = queue.top().second;
+  queue.pop();
+  MaybePut(tmp2);
+  IToN(tmp2, tmp1);
+  _(K, tmp2); // tmp2: K(tmp2)
+
+  CallWithSlot(tmp1, tmp2); // tmp1: S(K(get) K(zero))
+
+  _(S, tmp1);
+
+  MaybePut(tmp2);
+  _(tmp2, REVIVE);
+  _(S, tmp2);
+  _(tmp2, SUCC); // tmp2: S(revive succ)
+
+  // S(S(K(get) K(zero)) S(revive succ))
+  CallWithSlot(tmp1, tmp2);
+
+  sleep(10);
+  _(ZERO, tmp1);
+  sleep(10000);
+  return;
+
+  int tmp3 = queue.top().second;
+  queue.pop();
+  for (int i = 0; i < 4; ++i) {
+    MaybePut(tmp2);
+    IToN(tmp2, tmp1);
+    _(GET, tmp2);
+
+    MaybePut(tmp3);
+    IToN(tmp3, 64 * i);
+
+    CallWithSlot(tmp2, tmp3);
+
+    sleep(1000);
+
+  }
+}
+
 int GetFuncLength(const struct function* func) {
   int len = 1;
   for (int i = 0; i < func->nr_args; ++i) {
@@ -700,6 +759,7 @@ void Work() {
   while (1) {
     DoWork();
     KillZero();
+    //TryAllRevive();
     TryRevive();
   }
 }
