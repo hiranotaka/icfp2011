@@ -8,7 +8,8 @@
 #define numberof(x) (sizeof(x) / sizeof(*(x)))
 
 static int parse_integer(const char *expr, const char **endp,
-			 struct value **valuep) {
+			 struct value **valuep)
+{
 	struct value *value;
 	value = create_value();
 	value->type = TYPE_INTEGER;
@@ -18,7 +19,8 @@ static int parse_integer(const char *expr, const char **endp,
 }
 
 static int parse_function(const char *expr, const char **endp,
-			  struct value **valuep) {
+			  struct value **valuep)
+{
 	int namelen;
 	char name[16];
 	struct value *card_value, *value;
@@ -66,7 +68,8 @@ static int parse_function(const char *expr, const char **endp,
 	return 0;
 }
 
-int parse(const char *expr, const char **endp, struct value **value) {
+int parse(const char *expr, const char **endp, struct value **value)
+{
 	if (isdigit(expr[0]))
 		return parse_integer(expr, endp, value);
 	else
