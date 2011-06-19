@@ -27,6 +27,6 @@ static inline void set_slot_used(struct compile_result *result, int slot_index)
 struct value;
 struct game;
 void compile(struct value *value, struct compile_result *result,
-	     struct game *game);
+	     const struct game *game);
 
 #endif
