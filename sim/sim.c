@@ -445,7 +445,7 @@ static void apply_zombie(struct slot *slot, struct game *game)
 	if (apply(slot->field, &I_value, &ret, game))
 		unref_value(ret);
 
-	unref_value(&slot->field);
+	unref_value(slot->field);
 	slot->field = ref_value(&I_value);
 	slot->vitality = 0;
 }
