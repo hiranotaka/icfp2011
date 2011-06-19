@@ -1,0 +1,8 @@
+
+How to build:
+$ cd players/help_attack
+$ make
+
+How to run:
+$ ltg.linux64 -silent true match ./players/help_attack/run ./other_program
+
