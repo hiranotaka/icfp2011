@@ -43,7 +43,7 @@ static int parse_function(const char *expr, const char **endp,
 
 	end = (char *)(expr + namelen);
 	while (*end == '(') {
-		if (value->u.function.nr_args >
+		if (value->u.function.nr_args >=
 		    numberof(value->u.function.args))
 		    return 0;
 		if (!parse(end + 1, &end,
