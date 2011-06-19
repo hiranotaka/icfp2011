@@ -1,6 +1,9 @@
-all: run nothing random inc inc_fast
+all: run run_recursive nothing random inc inc_fast
 
 run: ltg_help_attack.o ../sim/libsim.a
+	g++ -O3 -Wall -g -o $@ $^
+
+run_recursive: ltg_help_attack_recursive.o ../sim/libsim.a
 	g++ -O3 -Wall -g -o $@ $^
 
 nothing: ltg_do_nothing.o
