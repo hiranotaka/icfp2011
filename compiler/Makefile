@@ -1,6 +1,9 @@
-all: parser
+all: parser compiler
 
 parser: parser_cli.o parser.o ../sim/libsim.a
+	gcc -O2 -Wall -g -o $@ $^
+
+compiler: compiler_cli.o compiler.o parser.o ../sim/libsim.a
 	gcc -O2 -Wall -g -o $@ $^
 
 .c.o:
@@ -14,6 +17,8 @@ clean:
 	rm -f run *.o
 
 parser.o: parser.h
-parser_test.o: parser.h
+parser_cli.o: parser.h
+compiler.o: compiler.h
+compiler_cli.o: parser.h compiler.h
 
 .PHONY: clean ../sim/libsim.a
