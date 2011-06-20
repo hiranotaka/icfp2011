@@ -344,7 +344,7 @@ static void do_compile(struct value *value, struct compile_result *result,
 	int i;
 	struct compile_result slot_result, best_slot_result;
 
-	best_slot_result.nr_turns = INT_MAX;
+	best_slot_result.nr_turns = 2000000;
 	for (i = 0; i < 256; i++) {
 		copy_result(result, &slot_result);
 		if (!compile_at(value, i, &slot_result, game))
