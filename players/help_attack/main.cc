@@ -22,19 +22,26 @@ int OPP_PLAYER;
 
 #define arraysize(a) (sizeof(a)/sizeof((a)[0]))
 
-bool run_expr(const char* expr) {
+bool do_run_expr(const char* expr) {
 	struct compile_result result;
 	struct value* value;
-	parse(expr, NULL, &value);
+	if (!parse(expr, NULL, &value)) {
+		fprintf(stderr, "PARSE FAILED: %s\n", expr);
+		return false;
+	}
 	compile(value, &result, G);
 	unref_value(value);
 	if (result.nr_turns > 2000000 || !result.nr_turns)
 		return false;
 	if (result.first_method == METHOD_CS)
-		_(result.first_slot_index, result.first_card_name);
-	else
 		_(result.first_card_name, result.first_slot_index);
+	else
+		_(result.first_slot_index, result.first_card_name);
 	return result.nr_turns > 1;
+}
+
+void run_expr(const char* expr) {
+	while (do_run_expr(expr));
 }
 
 // return true when revived
@@ -59,6 +66,7 @@ bool ReviveIfDeath(int slot) {
 }
 
 void TryRevive() {
+#ifndef USE_COMPILER
   int alive = 0;
   for (int i = 10; i < 256; ++i) {
     if (GetMyVitality(i, G) > 1000) {
@@ -66,16 +74,18 @@ void TryRevive() {
       break;
     }
   }
+#endif
   for (int i = 0; i < 256; ++i) {
     if (GetMyVitality(i, G) <= 0) {
+#ifdef USE_COMPILER
 	    char expr[32];
 	    sprintf(expr, "revive(%d)", i);
 	    run_expr(expr);
-	    /*
+#else
       _(PUT, alive); // alive : I
       IToN(alive, i); // alive : i
       _(REVIVE, alive); // revive i
-	    */
+#endif
     }
   }
 }
@@ -191,15 +201,16 @@ void Zombie(int target) {
   if (tmp <= 0)
     return;
 
-  /*
+#ifdef USE_COMPILER
+  char expr[32];
+  sprintf(expr, "zombie(%d)(I)", 255 - target);
+  run_expr(expr);
+#else
   MaybePut(tmp);
   IToN(tmp, 255 - target);  // tmp : target - 255
   _(ZOMBIE, tmp);   // tmp : zombie(target - 255)
   _(tmp, I);  // tmp : zomvie(target - 255, I)
-  */
-  char expr[32];
-  sprintf(expr, "zombie(%d)(I)", 255 - target);
-  run_expr(expr);
+#endif
 
   if (DEBUG)
     cerr << "zomvie!!" << endl;
@@ -612,9 +623,11 @@ void DoWork() {
     return;
 
   while (mv < 65535) {
+#ifndef USE_COMPILER
     _(PUT, mvi);  // mvi: I
     IToN(mvi, mvi);  // mvi: mvi
     _(HELP, mvi);  // mvi: help(mvi)
+#endif
 
     int sv = -1;  // Second largest vitality.
     int svi = -1;  // Slot number of second largest vitality.
@@ -630,9 +643,19 @@ void DoWork() {
     if (sv <= 0 || svi < 0)
       return;
 
+#ifndef USE_COMPILER
     CallWithValue(mvi, svi);  // mvi: help(mvi)(svi)
+#endif
+
     int move = min(mv - 100, 65535 - sv);  // We leave at least 100 life.
+#ifdef USE_COMPILER
+    char expr[32];
+    sprintf(expr, "help(%d)(%d)(%d)", mvi, svi, move);
+    run_expr(expr);
+#else
     CallWithValue(mvi, move);  // mvi: I
+#endif
+
     mv = GetMyVitality(svi, G);
     mvi = svi;
   }
@@ -762,31 +785,36 @@ void KillZero() {
     int opp_v = GetOppVitality(0, G);
     int power = opp_v * 10 / 9 + 1;
    
-    /*  
+#ifndef USE_COMPILER
     MaybePut(0);
     IToN(0, help_i);
     _(HELP, 0);  // 0: help(help_i)
     CallWithValue(0, help_j); // help(help_i, help_j)
+#endif
 
     // We leave at least 100 life.
     int my_v = GetMyVitality(help_i, G);
     int move = min(power, my_v - 100);
+#ifndef USE_COMPILER
     CallWithValue(0, move);
 
     MaybePut(0);
     IToN(0, help_j);
     _(ATTACK, 0); // 0: attack(help_j)
     CallWithValue(0, 255); // 0: attack(help_j, 255)
+#endif
 
     int mv = GetMyVitality(help_j, G);
     power = min(mv - 100, move);
-    CallWithValue(0, power); // 0: attack(0, 255, move);
-    */
+#ifdef USE_COMPILER
     char expr[32];
-    sprintf(expr, "help(%d)(%d)", help_i, help_j);
+    sprintf(expr, "help(%d)(%d)(%d)", help_i, help_j, move);
     run_expr(expr);
     sprintf(expr, "attack(0)(255)(%d)", power);
     run_expr(expr);
+#else
+    CallWithValue(0, power); // 0: attack(0, 255, move);
+#endif
 
     help_i += 2;
   }
