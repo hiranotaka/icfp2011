@@ -35,6 +35,14 @@ void Opp() {
     struct value* v = find_card_value(card_name.c_str());
     apply_sc(slot_number, v, G);
   }
+
+  static int dead[256] = {};
+  for (int i = 0; i < 256; ++i) {
+    if (!dead[i] && GetVitality(i, MY_PLAYER, G) == 0) {
+      dead[i] = 1;
+      throw 0;
+    }
+  }
 }
 
 const char* card_names[] = {
@@ -130,18 +138,31 @@ void MaybePut(int i) {
   _(PUT, i);
 }
 
-const int kHelpRange = 65;
+const int kHelpRange = 54;
 
-void Help(int offset) {
-  MaybePut(0);  // 0: I
-  IToN(0, 8192);  // 0: 8192
-  _(K, 0);  // 0: K(8192)
+void Help(int offset, int help_n) {
+//   MaybePut(0);  // 0: I
+//   IToN(0, 8192);  // 0: 8192
+//   _(K, 0);  // 0: K(8192)
+//   MaybePut(1);  // 1: I
+//   _(1, HELP);  // 1: HELP
+//   _(S, 1);  // 1: S(help)
+//   _(1, SUCC);  // 1: S(help)(succ)
+//   _(S, 1);  // 1: S(S(help)(succ))
+//   CallWithSlot(1, 0);  // 1: S(S(help)(succ))(K(8192))
+
+  // help -> S(revive)(help)
   MaybePut(1);  // 1: I
-  _(1, HELP);  // 1: HELP
-  _(S, 1);  // 1: S(help)
-  _(1, SUCC);  // 1: S(help)(succ)
-  _(S, 1);  // 1: S(S(help)(succ))
-  CallWithSlot(1, 0);  // 1: S(S(help)(succ))(K(8192))
+  _(1, REVIVE);  // 1: revive
+  _(S, 1);  // 1: S(revive)
+  _(1, HELP);  // 1: S(revive)(help)
+  MaybePut(0);  // 0: I
+  IToN(0, help_n);  // 0: 8192
+  _(K, 0);  // 0: K(8192)
+  _(S, 1);  // 1: S(S(revive)(help))
+  _(1, SUCC);  // 1: S(S(revive)(help))(succ)
+  _(S, 1);  // 1: S(S(S(revive)(help))(succ))
+  CallWithSlot(1, 0);  // 1: S(S(S(revive)(help))(succ))(K(8192))
 
   MaybePut(0);  // 0: I
   _(0, GET);  // 0: get
@@ -179,11 +200,12 @@ void Help(int offset) {
   MaybePut(2);  // 2: I
   IToN(2, offset + kHelpRange);  // 2: 67
   MaybePut(3);  // 3: I
-  IToN(3, 8192);  // 3: 8192
+  IToN(3, help_n);  // 3: 8192
   MaybePut(6);  // 6: I
   IToN(6, offset);
 
-  while (1) {
+  //  while (1) {
+  for (int i = 0; i < 2; ++i) {
     MaybePut(4);  // 4: I
     _(4, ZERO);  // 4: 0
     _(GET, 4);  // 4: S(K(get))(K(1))
@@ -201,12 +223,10 @@ void Help(int offset) {
 
     // Help!
     CallWithSlot(5, 3);  // 4: help(67)(0)(8192) -> I
-
-    if (GetVitality(offset + kHelpRange, MY_PLAYER, G) >= 55000) break;
   }
 }
 
-const int kAttackRange = 64;
+const int kAttackRange = 55;
 
 void Attack(int offset) {
   MaybePut(0);  // 0: I
@@ -252,35 +272,134 @@ void Attack(int offset) {
   MaybePut(3);  // 3: I
   IToN(3, offset);  // 3: attack_offsets[i]
 
-  while (1) {
-    int alive = 0;
-    for (int j = 0; j < kAttackRange; ++j) {
-      if (GetVitality(255 - (offset + j), 1 - MY_PLAYER, G)
-          > 0) {
-        ++alive;
-      }
+  MaybePut(2);  // 2: I
+  _(2, ZERO);  // 2: zero
+  _(GET, 2);  // 2: S(S(K(get))(K(1)))(I)
+  CallWithSlot(2, 3);
+}
+
+int CountDead(int l, int r) {
+  int dead = 0;
+  for (int i = l; i < r; ++i) {
+    if (GetVitality(i, MY_PLAYER, G) == 0) {
+      ++dead;
     }
-    if (alive == 0) break;
-    MaybePut(2);  // 2: I
-    _(2, ZERO);  // 2: zero
-    _(GET, 2);  // 2: S(S(K(get))(K(1)))(I)
-    CallWithSlot(2, 3);
   }
+  return dead;
+}
+
+void DoRevive(int offset) {
+  int mv = -1;
+  int mvi = -1;
+  for (int i = 0; i < 256; ++i) {
+    int v = GetVitality(i, MY_PLAYER, G);
+    if (mv < v) {
+      mv = v;
+      mvi = i;
+    }
+  }
+
+  int sv = -1;
+  int svi = -1;
+  for (int i = 0; i < 256; ++i) {
+    if (i == mvi) continue;
+    int v = GetVitality(i, MY_PLAYER, G);
+    if (sv < v) {
+      sv = v;
+      svi = i;
+    }
+  }
+
+  // We have only one slot. Give up.
+  if (sv == -1) while (1) _(PUT, 1);
+
+  int tv = -1;
+  int tvi = -1;
+  for (int i = 0; i < 256; ++i) {
+    if (i == mvi || i == svi) continue;
+    int v = GetVitality(i, MY_PLAYER, G);
+    if (tv < v) {
+      tv = v;
+      tvi = i;
+    }
+  }
+
+  // We have only two slot. Give up.
+  if (tv == -1) while (1) _(PUT, 1);
+
+  // Increasing order infinite loop.
+  // S (S (S (F) (K (get) ) ) (K (zero) ) ) (succ)
+
+  MaybePut(svi);
+  _(svi, GET);
+  _(K, svi);  // svi: K(get)
+
+  MaybePut(mvi);
+  _(mvi, REVIVE);
+  //_(mvi, DEC);
+  _(S, mvi);
+  CallWithSlot(mvi, svi);
+  _(S, mvi);  // mvi: S(S(revive)(K(get)))
+
+  MaybePut(svi);
+  IToN(svi, mvi);
+  _(K, svi);  // svi: K(mvi)
+
+  CallWithSlot(mvi, svi);  // mvi: S(S(revive)(K(get)))(K(mvi))
+
+  _(S, mvi);  // mvi: S(S(S(revive)(K(get)))(K(mvi)))
+  _(mvi, SUCC);  // mvi: S(S(S(revive)(K(get)))(K(mvi)))(succ)
+
+  // Try to make svi: S(S(K(get))(K(mvi)))(I)
+  MaybePut(tvi);  // tvi: I
+  IToN(tvi, mvi);  // tvi: mvi
+  _(K, tvi);  // tvi: K(mvi)
+
+  MaybePut(svi);  // svi: I
+  _(svi, GET);  // svi: get
+  _(K, svi);  // svi: K(get)
+  _(S, svi);  // svi: S(K(get))
+  CallWithSlot(svi, tvi);  // svi: S(K(get))(K(mvi))
+  _(S, svi);  // svi: S(S(K(get))(K(mvi)))
+  _(svi, I);  // svi: S(S(K(get))(K(mvi)))(I)
+
+  CallWithValue(svi, offset);
+  //sleep(1);
+  _(mvi, ZERO);
+}
+
+void Revive() {
+  int before_dead = CountDead(0, 256);
+  if (before_dead == 0) return;
+  if (CountDead(0, 110) > 0) DoRevive(0);
+  if (CountDead(110, 210) > 0) DoRevive(110);
+  if (CountDead(149, 256) > 0) DoRevive(149);
+  cerr << before_dead << " " << CountDead(0, 256) << endl;
+  //sleep(1);
+  //sleep(1);
 }
 
 void DoWork() {
-  static int help_offsets[] = {0, 65, 130, 190};
-  static int attack_offsets[] = {0, 64, 128, 191};
+  static int help_offsets[] = {0, 50, 100, 150, 201};
+  static int attack_offsets[] = {0, 50, 100, 150, 201};
+  const int size = arraysize(help_offsets);
 
-  for (int i = 0; i < arraysize(help_offsets); ++i) {
-    Help(help_offsets[i]);
-    Attack(attack_offsets[i]);
+  for (int i = 0; i < size; ++i) {
+    Revive();
+    int n = 1, v = GetVitality(help_offsets[size - 1 - i], MY_PLAYER, G);
+    while ((n << 1) < v) n <<= 1;
+    Help(help_offsets[size - 1 - i], n);
+    Revive();
+    Attack(attack_offsets[size - 1 - i]);
   }
 }
 
 void Work() {
   while (1) {
-    DoWork();
+    try {
+      DoWork();
+    } catch (int e) {
+    }
   }
 }
 
