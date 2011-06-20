@@ -324,7 +324,7 @@ static int compile_at(struct value *value, int slot_index,
 	set_slot_used(result, slot_index);
 
 	slot = &game->users[game->turn].slots[slot_index];
-	if (slot->vitality < 0)
+	if (slot->vitality <= 0)
 		return 0;
 
 	saved_slot_index = result->first_slot_index;
