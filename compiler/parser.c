@@ -40,6 +40,7 @@ static int parse_function(const char *expr, const char **endp,
 	value = create_value();
 	value->type = TYPE_FUNCTION;
 	value->u.function.ops = card_value->u.function.ops;
+	value->u.function.nr_args = 0;
 
 	end = (char *)(expr + namelen);
 	while (*end == '(') {
