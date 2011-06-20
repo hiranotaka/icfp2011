@@ -1,5 +1,8 @@
 all: parser compiler
 
+libcompiler.a: parser.o compiler.o ../sim/libsim.a
+	ar r $@ $^
+
 parser: parser_cli.o parser.o ../sim/libsim.a
 	gcc -O2 -Wall -g -o $@ $^
 

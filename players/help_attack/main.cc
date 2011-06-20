@@ -1,8 +1,13 @@
 #include "global.h"
 #include "sim_util.h"
 #include "util.h"
+extern "C" {
+#include "../../compiler/compiler.h"
+#include "../../compiler/parser.h"
+}
 
 #include <cassert>
+#include <cstdio>
 #include <iostream>
 #include <string>
 #include <queue>
@@ -16,6 +21,21 @@ int MY_PLAYER;
 int OPP_PLAYER;
 
 #define arraysize(a) (sizeof(a)/sizeof((a)[0]))
+
+bool run_expr(const char* expr) {
+	struct compile_result result;
+	struct value* value;
+	parse(expr, NULL, &value);
+	compile(value, &result, G);
+	unref_value(value);
+	if (result.nr_turns > 2000000 || !result.nr_turns)
+		return false;
+	if (result.first_method == METHOD_CS)
+		_(result.first_slot_index, result.first_card_name);
+	else
+		_(result.first_card_name, result.first_slot_index);
+	return result.nr_turns > 1;
+}
 
 // return true when revived
 bool ReviveIfDeath(int slot) {
@@ -48,9 +68,14 @@ void TryRevive() {
   }
   for (int i = 0; i < 256; ++i) {
     if (GetMyVitality(i, G) <= 0) {
+	    char expr[32];
+	    sprintf(expr, "revive(%d)", i);
+	    run_expr(expr);
+	    /*
       _(PUT, alive); // alive : I
       IToN(alive, i); // alive : i
       _(REVIVE, alive); // revive i
+	    */
     }
   }
 }
@@ -166,10 +191,16 @@ void Zombie(int target) {
   if (tmp <= 0)
     return;
 
+  /*
   MaybePut(tmp);
   IToN(tmp, 255 - target);  // tmp : target - 255
   _(ZOMBIE, tmp);   // tmp : zombie(target - 255)
   _(tmp, I);  // tmp : zomvie(target - 255, I)
+  */
+  char expr[32];
+  sprintf(expr, "zombie(%d)(I)", 255 - target);
+  run_expr(expr);
+
   if (DEBUG)
     cerr << "zomvie!!" << endl;
 }
@@ -731,6 +762,7 @@ void KillZero() {
     int opp_v = GetOppVitality(0, G);
     int power = opp_v * 10 / 9 + 1;
    
+    /*  
     MaybePut(0);
     IToN(0, help_i);
     _(HELP, 0);  // 0: help(help_i)
@@ -745,10 +777,16 @@ void KillZero() {
     IToN(0, help_j);
     _(ATTACK, 0); // 0: attack(help_j)
     CallWithValue(0, 255); // 0: attack(help_j, 255)
-  
+
     int mv = GetMyVitality(help_j, G);
     power = min(mv - 100, move);
     CallWithValue(0, power); // 0: attack(0, 255, move);
+    */
+    char expr[32];
+    sprintf(expr, "help(%d)(%d)", help_i, help_j);
+    run_expr(expr);
+    sprintf(expr, "attack(0)(255)(%d)", power);
+    run_expr(expr);
 
     help_i += 2;
   }

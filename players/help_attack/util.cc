@@ -44,6 +44,34 @@ void _(int i, Card c) {
   Opp();
 }
 
+template<>
+void __(const char* c, int i, struct game* g) {
+  cout << 1 << endl;
+  cout << c << endl;
+  cout << i << endl;
+  struct value* v = find_card_value(c);
+  apply_cs(v, i, g);
+}
+
+template<>
+void __(int i, const char* c, struct game* g) {
+  cout << 2 << endl;
+  cout << i << endl;
+  cout << c << endl;
+  struct value* v = find_card_value(c);
+  apply_sc(i, v, g);
+}
+
+void _(const char* c, int i) {
+  __(c, i, G);
+  Opp();
+}
+
+void _(int i, const char* c) {
+  __(i, c, G);
+  Opp();
+}
+
 void Opp() {
   int application_order;
   cin >> application_order;

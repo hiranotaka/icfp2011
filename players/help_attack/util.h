@@ -31,4 +31,7 @@ void MaybePut(int i);
 void _(Card c, int i);
 void _(int i, Card c);
 
+void _(const char* c, int i);
+void _(int i, const char* c);
+
 #endif
