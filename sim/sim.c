@@ -324,7 +324,7 @@ static int zombie(struct function *f, struct value **retp, struct game *game)
 	struct slot *slot;
 
 	i = f->args[0];
-	x = f->args[0];
+	x = f->args[1];
 	if (!is_slot_index(i))
 		return 0;
 
@@ -339,7 +339,7 @@ static int zombie(struct function *f, struct value **retp, struct game *game)
 	*retp = ref_value(&I_value);
 	return 1;
 }
-DEFINE_FUNCTION(zombie, 1);
+DEFINE_FUNCTION(zombie, 2);
 
 struct card {
 	const char *name;
@@ -407,8 +407,10 @@ static int game_dead(struct game *game)
 
 static void apply_zombie(struct slot *slot, struct game *game)
 {
-	if (slot->vitality > 0)
+	if (slot->vitality >= 0)
 		return;
+
+        print_value(slot->field);
 
 	struct value *ret;
 	if (apply(slot->field, &I_value, &ret, game))
