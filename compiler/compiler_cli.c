@@ -5,19 +5,14 @@
 #include "../sim/debug.h"
 #include "../sim/sim.h"
 
-int main(int argc, char *argv[]) {
-	struct value *value;
-	struct game *game;
+int run_expr(const char *expr, struct game *game) {
+        struct value *value;
 	int i;
 	struct compile_result result;
 
-	if (argc != 2)
-		return 1;
+	if (!parse(expr, NULL, &value))
+		return 0;
 
-	if (!parse(argv[1], NULL, &value))
-		return 1;
-
-	game = create_game();
 	for (i = 0; i < 50; i++) {
 		compile(value, &result, game);
 		if (!result.nr_turns)
@@ -41,18 +36,30 @@ int main(int argc, char *argv[]) {
 		}
 		printf("(turns left: %d)\n", result.nr_turns);
 		switch_turn(game);
-
 		if (result.nr_turns <= 1)
 			break;
 	}
-	print_game(game);
-
-	destroy_game(game);
+        print_game(game);
 	unref_value(value);
+	return 1;
+err:
+	unref_value(value);
+	return 0;
+}
+
+int main(int argc, char *argv[]) {
+	struct game *game;
+	int i;
+
+	game = create_game();
+	for (i = 1; i < argc; i++) {
+		if (!run_expr(argv[i], game))
+			goto err;
+	}
+	destroy_game(game);
 	return 0;
 
  err:
-	unref_value(value);
 	destroy_game(game);
 	return 1;
 }
